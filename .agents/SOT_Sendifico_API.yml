@@ -1,0 +1,1691 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# SOURCE OF TRUTH for the Sendifico API.
+#
+# Edit THIS file; the customer-facing Postman collection and the rendered HTML
+# reference are GENERATED from it.
+# ─────────────────────────────────────────────────────────────────────────────
+openapi: 3.1.0
+info:
+  title: Sendifico API
+  version: '2026-01-01'
+  summary: Shipping for e-commerce — quote, create, pay, label, track.
+  description: |
+    The Sendifico API lets you quote, create, and track shipment labels across a carrier network. Visit <https://app.sendifico.com/integrations> to create your API key.
+
+    ## Interactive docs & spec URL
+
+    - **Hosted reference:** browse this contract interactively, with a built-in "Try it" console, at <https://developers.sendifico.com>.
+    - **Machine-readable spec:** this document is published, at <https://api.sendifico.com/api/public/openapi.yaml> — point any OpenAPI viewer, SDK generator, or Postman "import by URL" at it, or ask your AI agent to read it (OpenAI ChatGPT, Anthropic Claude, Google Gemini).
+
+    ## Authentication
+
+    Every request requires **three headers**:
+
+    | Header | Purpose |
+    |---|---|
+    | `x-api-key` | Your API key. Create one in the Sendifico web app under **Integrations → New Integration → Create Key**. Treat it like a payment credential — it can create and pay for shipments from your wallet, so store it in a secure environment. |
+    | `x-sendifico-api-version` | The date-stamped API version your integration targets (e.g. `2026-01-01`). Required on every request. |
+    | `x-sendifico-country` | The market (ISO 3166-1 alpha-2) the request targets, e.g. `EC`, `US`, `MX`, `CO`. Required on every request; echoed back on the response. |
+
+    ## Versioning
+
+    Header-based, date-stamped (`YYYY-MM-DD`), required on every request. The latest version is `2026-01-01`.
+
+    - Missing `x-sendifico-api-version` → `400 missingApiVersion`; malformed (not `YYYY-MM-DD`) → `400 invalidApiVersion`; unknown date → `400 unknownApiVersion`.
+    - To migrate to a future version, change the header value — no key change. Old versions are supported according to the deprecation policy.
+    - Every response echoes `x-sendifico-api-version` so you can verify which contract serialized it.
+    - **Non-breaking** changes may ship into an existing version without notice: new endpoints, new OPTIONAL request/response fields, bug fixes.
+
+    ## Conventions
+
+    - All endpoints live under `/api/public/<resource>`.
+    - **JSON** request/response bodies (`Content-Type: application/json`).
+    - **Response envelope.** Every response is wrapped in `{ payload, objectType }`. For single resources `payload` is the resource; for paginated lists it is `{ count, data, page, pageCount, total }`; for the unpaginated territory list it is `{ data }`. `objectType` is the singular resource name.
+    - **Pagination.** List endpoints accept `?limit=20&page=1`. `GET /territory` is NOT paginated.
+    - **Currency.** Responses carry an explicit `currency` next to each amount; requests send declared-goods amounts with `goodsCurrency`. Only `USD` is supported in this version.
+    - **Identifiers** (`shipmentId`, `addressId`, …) are bigints rendered as JSON numbers — treat them as opaque. The exception is `territoryBaseId`, an opaque country-prefixed **string**.
+    - **Territories, not city names.** Every address references a standardized `territoryBaseId` from `GET /territory` — free-form city strings are never accepted.
+    - **Parcel units.** `weight` is kilograms; `length`/`width`/`height` are centimeters. Units are fixed by the contract, not configurable.
+    - **Phones** are E.164 with country code, no spaces/dashes (`+593987654321`).
+
+    ## Shipping flow
+
+    A shipment moves through explicit, single-purpose calls so YOU decide exactly when you want to select a carrier and purchase a shipment:
+
+    1. `POST /quotation` — returns a list of quotes/rates from all carriers, based on a origin-destination route. This step is optional and it does NOT lead to the creation of any shipment object, nor any wallet transaction. Use this only to compare prices before creating an actual shipment.
+    2. `POST /shipment` — create a draft shipment and get the `rates` list from all carriers. At this point, no carrier is selected and no wallet transaction is made yet.
+    3. `PATCH /shipment/purchase/{id}` — pick a `rate` from your preferred carrier and pay for it from your wallet. Before you can purchase a shipment label, you must top-up your wallet at <https://app.sendifico.com/wallet>.
+    4. `PATCH /shipment/generateTrackingNumber/{id}` — contact the carrier systems to generate a shipment and get a valid `trackingNumber`. Idempotent — generated once, repeat calls return the same number. Call it close to dispatch (some carriers auto-annul an idle tracking number after ~1-2 days of inactivity).
+    5. `POST /shipment/generateLabelUrl/{id}` — mint a short-lived URL to download the label PDF. The URL expires (7 days max); re-call to get a fresh one.
+
+    Need to cancel? `PATCH /shipment/annulAndRefund/{id}` annuls an unpaid draft and refunds a paid one.
+  contact:
+    name: Sendifico Support
+    url: https://sendifico.com
+
+servers:
+  - url: https://api.sendifico.com/api/public
+    description: Production
+
+security:
+  - apiKey: []
+
+tags:
+  - name: How to create my first shipment
+    description: >-
+      The end-to-end happy path for shipping your first parcel: create a shipment draft + read the rate list → pick a rate and pay → create the carrier
+      tracking number → get the label download link. Follow these calls in order.
+  - name: Shipments
+    description: >-
+      Work with shipments you have already created — list them, retrieve one by
+      ID (status, tracking, addresses), and cancel + refund.
+  - name: Addresses
+    description: Manage your address book.
+  - name: Territories
+    description: Reference data — the standardized territories used on every address.
+
+paths:
+  /quotation:
+    post:
+      operationId: quoteShipment
+      tags: [How to create my first shipment]
+      summary: Get carrier rates
+      description: |
+        Quote a shipment across all production carriers. Returns one rate row per carrier; **no shipment is created** and nothing is persisted against your address book.
+
+        Both addresses are INLINE and only `territoryBaseId` + `country` are used — full delivery details are collected later on `POST /shipment`. This is also why `senderAddressId` is not accepted here.
+
+        The carrier's insurance fee (`goodsInsured` is the declared insurance value) and carrier's collection fee (`goodsCollection` is the Cash-on-delivery COD amount) are folded into each rate's `priceTotal`.
+      parameters:
+        - $ref: '#/components/parameters/ApiVersionHeader'
+        - $ref: '#/components/parameters/CountryHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/QuotationRequest' }
+            example:
+              senderAddress: { territoryBaseId: 'EC|:|GUAYAS|:|GUAYAQUIL|:|GUAYAQUIL', country: EC }
+              recipientAddress: { territoryBaseId: 'EC|:|PICHINCHA|:|QUITO|:|QUITO', country: EC }
+              parcel: { weight: 1.5, length: 30, width: 20, height: 10 }
+              goodsCollection: 50.0
+              goodsInsured: 50.0
+              goodsCurrency: USD
+      responses:
+        '201':
+          description: Rates computed
+          headers:
+            x-sendifico-api-version: { $ref: '#/components/headers/ApiVersionEcho' }
+            x-sendifico-country: { $ref: '#/components/headers/CountryEcho' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QuotationListEnvelope' }
+              example:
+                payload:
+                  count: 7
+                  data:
+                    - { quotationId: 5001234, carrierToken: ec_laar, priceSubtotal: 0.88, priceTotal: 1.01, currency: USD, estimateDays: 2, available: true }
+                    - { quotationId: 5001235, carrierToken: ec_tramaco, priceSubtotal: 0.96, priceTotal: 1.10, currency: USD, estimateDays: 2, available: false, unavailableReason: codLimitExceeded }
+                    - { quotationId: 5001236, carrierToken: servientrega, priceSubtotal: 1.04, priceTotal: 1.20, currency: USD, estimateDays: 3, available: true }
+                    - { quotationId: 5001237, carrierToken: ec_delivereo, priceSubtotal: 1.13, priceTotal: 1.30, currency: USD, estimateDays: 1, available: true }
+                    - { quotationId: 5001238, carrierToken: ec_yobel, priceSubtotal: 1.22, priceTotal: 1.40, currency: USD, estimateDays: 3, available: true }
+                    - { quotationId: 5001239, carrierToken: ec_urbano, priceSubtotal: 1.30, priceTotal: 1.50, currency: USD, estimateDays: 2, available: true }
+                    - { quotationId: 5001240, carrierToken: ec_gintracom, priceSubtotal: 1.30, priceTotal: 1.50, currency: USD, estimateDays: 1, available: true }
+                  page: 1
+                  pageCount: 1
+                  total: 7
+                objectType: quotation
+        '400':
+          $ref: '#/components/responses/RequestValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /shipment:
+    post:
+      operationId: createShipment
+      tags: [How to create my first shipment]
+      summary: Create a shipment draft + get the carrier's rate list
+      description: |
+        Validates the input, persists the shipment as an unpaid draft (`status: "quoted"`, `isPaid: false`), and returns the `rates[]` menu (one per available carrier). This call **never charges the wallet**, **never selects a carrier**.
+
+        `extId` is optional but must be **unique per account** — it is your own order id (from your e-commerce or internal system), echoed back on every shipment response. The purpose of this field is to help you track shipments to your orders in your system, so it's higly suggested to use it. Re-sending an `extId` that was already accepted for this account is rejected with `409 pApiShipmentExtIdAlreadyUsed`: the create is **not** replayed and nothing is overwritten. Use a fresh `extId` per order; if a retry is ambiguous, look the order up with `GET /shipment` before retrying. You can also edit a draft unpaid shipment `PATCH /shipment/{id}` to update it and use an existing `extId`.
+
+        `senderAddressId` is required — it must reference one of your saved sender addresses (`GET /address`). Omitting it → `400 pApiAddressSenderRequired`; an id that is not a saved sender address → `404 pApiAddressSenderNotFound`.
+
+        Provide the recipient EITHER inline (`recipientAddress`) OR as a saved `recipientAddressId` — exactly one.
+
+        `parcel` is required with numeric `weight` > 0 and dimensions `length`/`width`/`height` ≥ 1 (on error → `400 pApiQuotationParcelBadRequest`). `contents` is required and must be a non-empty array of one single product category (on error → `400 pApiShipmentContentsRequired`).
+
+        Next: pick a `rateId` where `available` is `true` and pay via `PATCH /shipment/purchase/{id}`.
+      parameters:
+        - $ref: '#/components/parameters/ApiVersionHeader'
+        - $ref: '#/components/parameters/CountryHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ShipmentCreateRequest' }
+            example:
+              extId: my-shop-order-9876
+              senderAddressId: 2001234
+              recipientAddress:
+                fullName: María García
+                company: Acme S.A.
+                email: maria.garcia@example.com
+                streetLine1: Av. Amazonas N24-03 y Colón
+                reference: Frente al parque
+                territoryBaseId: 'EC|:|PICHINCHA|:|QUITO|:|QUITO'
+                country: EC
+                zip: '170135'
+                lat: -0.1807
+                lng: -78.4678
+                phone: '+593987654321'
+              parcel: { weight: 1.5, length: 30, width: 20, height: 10 }
+              contents: [clothes]
+              goodsCollection: 50.0
+              goodsInsured: 50.0
+              goodsCurrency: USD
+      responses:
+        '201':
+          description: Draft created with the rate list
+          headers:
+            x-sendifico-api-version: { $ref: '#/components/headers/ApiVersionEcho' }
+            x-sendifico-country: { $ref: '#/components/headers/CountryEcho' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShipmentDraftEnvelope' }
+              example:
+                payload:
+                  shipmentId: 4001234
+                  extId: my-shop-order-9876
+                  status: quoted
+                  isPaid: false
+                  goodsCollection: 50.0
+                  goodsInsured: 50.0
+                  contents: [clothes]
+                  senderAddress:
+                    addressId: 2001234
+                    addressType: sender
+                    fullName: Juan Pérez
+                    company: Acme S.A.
+                    email: juan.perez@example.com
+                    streetLine1: Av. 9 de Octubre 1234
+                    reference: Edificio Plaza, oficina 201
+                    territoryBaseId: 'EC|:|GUAYAS|:|GUAYAQUIL|:|GUAYAQUIL'
+                    country: EC
+                    zip: '090313'
+                    lat: -2.1894
+                    lng: -79.8891
+                    phone: '+593987654321'
+                    objectCreated: '2026-04-12T09:00:00.000Z'
+                  recipientAddress:
+                    addressId: 2001235
+                    addressType: recipient
+                    fullName: María García
+                    company: null
+                    email: maria.garcia@example.com
+                    streetLine1: Av. Amazonas N34-451
+                    reference: Frente al parque
+                    territoryBaseId: 'EC|:|PICHINCHA|:|QUITO|:|QUITO'
+                    country: EC
+                    zip: '170135'
+                    lat: -0.1807
+                    lng: -78.4678
+                    phone: '+593998877665'
+                    objectCreated: '2026-04-12T09:05:00.000Z'
+                  objectCreated: '2026-05-09T14:32:00.000Z'
+                  objectUpdated: '2026-05-09T14:32:00.000Z'
+                  goodsCurrency: USD
+                  trackingNumber: null
+                  trackingCarrierUrl: null
+                  incidentCount: null
+                  rates:
+                    - { rateId: 7001234, carrierToken: ec_laar, priceSubtotal: 0.88, priceTotal: 1.01, currency: USD, estimateDays: 2, available: true }
+                    - { rateId: 7001235, carrierToken: ec_tramaco, priceSubtotal: 0.96, priceTotal: 1.10, currency: USD, estimateDays: 2, available: false, unavailableReason: codLimitExceeded }
+                objectType: shipment
+        '400':
+          $ref: '#/components/responses/RequestValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    get:
+      operationId: listShipments
+      tags: [Shipments]
+      summary: List your shipments
+      description: List your shipments. Paginated.
+      parameters:
+        - $ref: '#/components/parameters/ApiVersionHeader'
+        - $ref: '#/components/parameters/CountryHeader'
+        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/PageQuery'
+      responses:
+        '200':
+          description: A page of shipments
+          headers:
+            x-sendifico-api-version: { $ref: '#/components/headers/ApiVersionEcho' }
+            x-sendifico-country: { $ref: '#/components/headers/CountryEcho' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShipmentListEnvelope' }
+              example:
+                payload:
+                  count: 1
+                  data:
+                    - shipmentId: 4001234
+                      extId: my-shop-order-9876
+                      status: inTransit
+                      isPaid: true
+                      preferredCarrierToken: ec_laar
+                      trackingNumber: LAAR-EC-987654321
+                      trackingCarrierUrl: 'https://tracking.sendifico.com/LAAR-EC-987654321'
+                      incidentCount: 0
+                      priceSubtotal: 0.88
+                      priceTotal: 1.01
+                      goodsCurrency: USD
+                      goodsCollection: 50.0
+                      goodsInsured: 50.0
+                      contents: [clothes]
+                      senderAddress:
+                        addressId: 2001234
+                        addressType: sender
+                        fullName: Juan Pérez
+                        company: Acme S.A.
+                        email: juan.perez@example.com
+                        streetLine1: Av. 9 de Octubre 1234
+                        reference: Edificio Plaza, oficina 201
+                        territoryBaseId: 'EC|:|GUAYAS|:|GUAYAQUIL|:|GUAYAQUIL'
+                        country: EC
+                        zip: '090313'
+                        lat: -2.1894
+                        lng: -79.8891
+                        phone: '+593987654321'
+                        objectCreated: '2026-04-12T09:00:00.000Z'
+                      recipientAddress:
+                        addressId: 2001235
+                        addressType: recipient
+                        fullName: María García
+                        company: null
+                        email: maria.garcia@example.com
+                        streetLine1: Av. Amazonas N34-451
+                        reference: Frente al parque
+                        territoryBaseId: 'EC|:|PICHINCHA|:|QUITO|:|QUITO'
+                        country: EC
+                        zip: '170135'
+                        lat: -0.1807
+                        lng: -78.4678
+                        phone: '+593998877665'
+                        objectCreated: '2026-04-12T09:05:00.000Z'
+                      objectCreated: '2026-05-09T14:32:00.000Z'
+                      objectUpdated: '2026-05-09T16:10:00.000Z'
+                  page: 1
+                  pageCount: 1
+                  total: 1
+                objectType: shipment
+        '400':
+          $ref: '#/components/responses/RequestValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /shipment/{id}:
+    get:
+      operationId: getShipment
+      tags: [Shipments]
+      summary: Retrieve a shipment
+      description: |
+        Retrieve a single shipment: status, tracking, and both the sender + recipient addresses. To download the label PDF, mint a link with `POST /shipment/generateLabelUrl/{id}`.
+      parameters:
+        - $ref: '#/components/parameters/ApiVersionHeader'
+        - $ref: '#/components/parameters/CountryHeader'
+        - $ref: '#/components/parameters/ShipmentIdPath'
+      responses:
+        '200':
+          description: The shipment
+          headers:
+            x-sendifico-api-version: { $ref: '#/components/headers/ApiVersionEcho' }
+            x-sendifico-country: { $ref: '#/components/headers/CountryEcho' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShipmentDetailEnvelope' }
+              example:
+                payload:
+                  shipmentId: 4001234
+                  extId: my-shop-order-9876
+                  status: inTransit
+                  isPaid: true
+                  preferredCarrierToken: ec_laar
+                  priceSubtotal: 0.88
+                  priceTotal: 1.01
+                  goodsCurrency: USD
+                  goodsCollection: 50.0
+                  goodsInsured: 50.0
+                  contents: [clothes]
+                  senderAddress:
+                    addressId: 2001234
+                    addressType: sender
+                    fullName: Juan Pérez
+                    company: Acme S.A.
+                    email: juan.perez@example.com
+                    streetLine1: Av. 9 de Octubre 1234
+                    reference: Edificio Plaza, oficina 201
+                    territoryBaseId: 'EC|:|GUAYAS|:|GUAYAQUIL|:|GUAYAQUIL'
+                    country: EC
+                    zip: '090313'
+                    lat: -2.1894
+                    lng: -79.8891
+                    phone: '+593987654321'
+                    objectCreated: '2026-04-12T09:00:00.000Z'
+                  recipientAddress:
+                    addressId: 2001235
+                    addressType: recipient
+                    fullName: María García
+                    company: null
+                    email: maria.garcia@example.com
+                    streetLine1: Av. Amazonas N34-451
+                    reference: Frente al parque
+                    territoryBaseId: 'EC|:|PICHINCHA|:|QUITO|:|QUITO'
+                    country: EC
+                    zip: '170135'
+                    lat: -0.1807
+                    lng: -78.4678
+                    phone: '+593998877665'
+                    objectCreated: '2026-04-12T09:05:00.000Z'
+                  trackingNumber: LAAR-EC-987654321
+                  trackingCarrierUrl: 'https://tracking.sendifico.com/LAAR-EC-987654321'
+                  incidentCount: 0
+                  objectCreated: '2026-05-09T14:32:00.000Z'
+                  objectUpdated: '2026-05-09T16:10:00.000Z'
+                objectType: shipment
+        '400':
+          $ref: '#/components/responses/RequestValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      operationId: editShipment
+      tags: [Shipments]
+      summary: Edit an unpaid quoted draft and re-quote
+      description: |
+        Edit a previously-created shipment that has NOT been paid yet, then get a fresh `rates[]` list. Use this to correct the parcel, contents, addresses, COD amount, or insured value before you pick a rate and pay.
+
+        Editable **only** while the draft is unpaid and still `quoted` (`isPaid: false` AND `status: "quoted"`).
+
+        Send **only** the fields you want to change — every field is optional and omitted fields are left untouched. Provide the recipient EITHER as a saved `recipientAddressId` OR inline via `recipientAddress`, never both. Address edits never mutate a saved/template address: the draft is re-pointed to a fresh owned copy.
+
+        This call **always re-quotes**: the prior `rates[]` are discarded, any previously selected rate is cleared, `status` stays `quoted`, and the response carries a brand-new `rates[]` list (same shape as `POST /shipment`).
+
+        Next: pick a `rateId` where `available` is `true` and pay via `PATCH /shipment/purchase/{id}`.
+      parameters:
+        - $ref: '#/components/parameters/ApiVersionHeader'
+        - $ref: '#/components/parameters/CountryHeader'
+        - $ref: '#/components/parameters/ShipmentIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ShipmentEditRequest' }
+            example:
+              parcel: { weight: 2.0, length: 35, width: 25, height: 12 }
+              goodsCollection: 75.0
+              goodsInsured: 75.0
+      responses:
+        '200':
+          description: Draft updated and re-quoted with a fresh rate list
+          headers:
+            x-sendifico-api-version: { $ref: '#/components/headers/ApiVersionEcho' }
+            x-sendifico-country: { $ref: '#/components/headers/CountryEcho' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShipmentDraftEnvelope' }
+              example:
+                payload:
+                  shipmentId: 4001234
+                  extId: my-shop-order-9876
+                  status: quoted
+                  isPaid: false
+                  goodsCollection: 75.0
+                  goodsInsured: 75.0
+                  contents: [clothes]
+                  senderAddress:
+                    addressId: 2001234
+                    addressType: sender
+                    fullName: Juan Pérez
+                    company: Acme S.A.
+                    email: juan.perez@example.com
+                    streetLine1: Av. 9 de Octubre 1234
+                    reference: Edificio Plaza, oficina 201
+                    territoryBaseId: 'EC|:|GUAYAS|:|GUAYAQUIL|:|GUAYAQUIL'
+                    country: EC
+                    zip: '090313'
+                    lat: -2.1894
+                    lng: -79.8891
+                    phone: '+593987654321'
+                    objectCreated: '2026-04-12T09:00:00.000Z'
+                  recipientAddress:
+                    addressId: 2001235
+                    addressType: recipient
+                    fullName: María García
+                    company: null
+                    email: maria.garcia@example.com
+                    streetLine1: Av. Amazonas N34-451
+                    reference: Frente al parque
+                    territoryBaseId: 'EC|:|PICHINCHA|:|QUITO|:|QUITO'
+                    country: EC
+                    zip: '170135'
+                    lat: -0.1807
+                    lng: -78.4678
+                    phone: '+593998877665'
+                    objectCreated: '2026-04-12T09:05:00.000Z'
+                  objectCreated: '2026-05-09T14:32:00.000Z'
+                  objectUpdated: '2026-05-09T15:05:00.000Z'
+                  goodsCurrency: USD
+                  trackingNumber: null
+                  trackingCarrierUrl: null
+                  incidentCount: null
+                  rates:
+                    - { rateId: 7002001, carrierToken: ec_laar, priceSubtotal: 1.05, priceTotal: 1.21, currency: USD, estimateDays: 2, available: true }
+                    - { rateId: 7002002, carrierToken: ec_tramaco, priceSubtotal: 1.13, priceTotal: 1.30, currency: USD, estimateDays: 2, available: false, unavailableReason: codLimitExceeded }
+                objectType: shipment
+        '400':
+          $ref: '#/components/responses/RequestValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: The shipment cannot be edited in its current state.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+              examples:
+                notEditable:
+                  value: { statusCode: 422, message: pApiShipmentNotEditable }
+
+  /shipment/purchase/{id}:
+    patch:
+      operationId: purchaseShipment
+      tags: [How to create my first shipment]
+      summary: Pick a rate and pay
+      description: |
+        Pick a rate and pay for a previously-created unpaid shipment from your wallet. The `{id}` is the `shipmentId` from `POST /shipment`.
+
+        - `preferredRateObjectId` — the chosen rate's `rateId` from the create response's `rates[]`. This is how the carrier is selected. Required before payment: if omitted AND no rate is selected yet → `422 pApiShipmentPreferredRateRequired`.
+        - `purchaseWith` — **required**; `walletTokenized` or `walletAvailable` (no default). Omitted → `400 pApiShipmentPurchaseWithRequired`; any other value → `400 pApiWalletUnsupportedPaymentMethod`.
+
+        Insufficient balance → `422 paymentIntentExecuteTransactionWalletInsufficientFunds` (no charge). Re-paying a paid shipment → `422 paymentIntentShipmentPurchaseTransactionAlreadyCreated`.
+
+        A successful response must show field `isPaid: true`, which means your wallet has been successfully charged for the shipment.
+
+        Next: `PATCH /shipment/generateTrackingNumber/{id}` to contact the carrier and generate the tracking number.
+      parameters:
+        - $ref: '#/components/parameters/ApiVersionHeader'
+        - $ref: '#/components/parameters/CountryHeader'
+        - $ref: '#/components/parameters/ShipmentIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ShipmentPurchaseRequest' }
+            example:
+              preferredRateObjectId: 7001234
+              purchaseWith: walletTokenized
+      responses:
+        '200':
+          description: Shipment paid; carrier selected
+          headers:
+            x-sendifico-api-version: { $ref: '#/components/headers/ApiVersionEcho' }
+            x-sendifico-country: { $ref: '#/components/headers/CountryEcho' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShipmentDetailEnvelope' }
+              example:
+                payload:
+                  shipmentId: 4001234
+                  extId: my-shop-order-9876
+                  status: quoted
+                  isPaid: true
+                  preferredCarrierToken: ec_laar
+                  priceSubtotal: 0.88
+                  priceTotal: 1.01
+                  goodsCurrency: USD
+                  goodsCollection: 50.0
+                  goodsInsured: 50.0
+                  contents: [clothes]
+                  senderAddress:
+                    addressId: 2001234
+                    addressType: sender
+                    fullName: Juan Pérez
+                    company: Acme S.A.
+                    email: juan.perez@example.com
+                    streetLine1: Av. 9 de Octubre 1234
+                    reference: Edificio Plaza, oficina 201
+                    territoryBaseId: 'EC|:|GUAYAS|:|GUAYAQUIL|:|GUAYAQUIL'
+                    country: EC
+                    zip: '090313'
+                    lat: -2.1894
+                    lng: -79.8891
+                    phone: '+593987654321'
+                    objectCreated: '2026-04-12T09:00:00.000Z'
+                  recipientAddress:
+                    addressId: 2001235
+                    addressType: recipient
+                    fullName: María García
+                    company: null
+                    email: maria.garcia@example.com
+                    streetLine1: Av. Amazonas N34-451
+                    reference: Frente al parque
+                    territoryBaseId: 'EC|:|PICHINCHA|:|QUITO|:|QUITO'
+                    country: EC
+                    zip: '170135'
+                    lat: -0.1807
+                    lng: -78.4678
+                    phone: '+593998877665'
+                    objectCreated: '2026-04-12T09:05:00.000Z'
+                  trackingNumber: null
+                  trackingCarrierUrl: null
+                  incidentCount: null
+                  objectCreated: '2026-05-09T14:32:00.000Z'
+                  objectUpdated: '2026-05-09T16:10:00.000Z'
+                objectType: shipment
+        '400':
+          $ref: '#/components/responses/RequestValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: The shipment cannot be purchased in its current state.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+              examples:
+                preferredRateRequired:
+                  value: { statusCode: 422, message: pApiShipmentPreferredRateRequired }
+                insufficientFunds:
+                  value: { statusCode: 422, message: paymentIntentExecuteTransactionWalletInsufficientFunds }
+                alreadyPaid:
+                  value: { statusCode: 422, message: paymentIntentShipmentPurchaseTransactionAlreadyCreated }
+
+  /shipment/generateTrackingNumber/{id}:
+    patch:
+      operationId: generateShipmentTrackingNumber
+      tags: [How to create my first shipment]
+      summary: Generate the carrier tracking number
+      description: |
+        Contact the carrier to generate a valid `trackingNumber` for a PAID shipment. No request body. On success the shipment moves to `status: "labelCreated"`. The purpose of this step is to ensure that the carrier has validated and accepted your shipment request.
+
+        **The carrier label PDF is NOT returned here.** This call returns the `trackingNumber` only. To obtain the carrier label PDF, mint a download link separately with `POST /shipment/generateLabelUrl/{id}`.
+
+        **This call can fail if the carrier's API is down** — that is outside Sendifico's control, so your integration MUST verify a `trackingNumber` was actually returned before proceeding.
+
+        **Idempotent:** the tracking number is generated exactly once and is immutable. Repeat calls return the same `trackingNumber` and do NOT re-contact the carrier, so retrying after a network failure is safe. A purchased shipment cannot be edited, so there is nothing to "regenerate".
+
+        **Timing — create this close to dispatch.** Ideally call it on the **same day** (or day before) the shipment is handed to the carrier (pickup or drop-off at a branch). Some carriers (e.g. **Tramaco**) **auto-annul a tracking number after ~1-3 days of inactivity** — if that happens you must create a new one. Do not create tracking numbers far in advance of actual dispatch.
+      parameters:
+        - $ref: '#/components/parameters/ApiVersionHeader'
+        - $ref: '#/components/parameters/CountryHeader'
+        - $ref: '#/components/parameters/ShipmentIdPath'
+      responses:
+        '200':
+          description: Tracking number created
+          headers:
+            x-sendifico-api-version: { $ref: '#/components/headers/ApiVersionEcho' }
+            x-sendifico-country: { $ref: '#/components/headers/CountryEcho' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShipmentDetailEnvelope' }
+              example:
+                payload:
+                  shipmentId: 4001234
+                  extId: my-shop-order-9876
+                  status: labelCreated
+                  isPaid: true
+                  preferredCarrierToken: ec_laar
+                  priceSubtotal: 0.88
+                  priceTotal: 1.01
+                  goodsCurrency: USD
+                  goodsCollection: 50.0
+                  goodsInsured: 50.0
+                  contents: [clothes]
+                  senderAddress:
+                    addressId: 2001234
+                    addressType: sender
+                    fullName: Juan Pérez
+                    company: Acme S.A.
+                    email: juan.perez@example.com
+                    streetLine1: Av. 9 de Octubre 1234
+                    reference: Edificio Plaza, oficina 201
+                    territoryBaseId: 'EC|:|GUAYAS|:|GUAYAQUIL|:|GUAYAQUIL'
+                    country: EC
+                    zip: '090313'
+                    lat: -2.1894
+                    lng: -79.8891
+                    phone: '+593987654321'
+                    objectCreated: '2026-04-12T09:00:00.000Z'
+                  recipientAddress:
+                    addressId: 2001235
+                    addressType: recipient
+                    fullName: María García
+                    company: null
+                    email: maria.garcia@example.com
+                    streetLine1: Av. Amazonas N34-451
+                    reference: Frente al parque
+                    territoryBaseId: 'EC|:|PICHINCHA|:|QUITO|:|QUITO'
+                    country: EC
+                    zip: '170135'
+                    lat: -0.1807
+                    lng: -78.4678
+                    phone: '+593998877665'
+                    objectCreated: '2026-04-12T09:05:00.000Z'
+                  trackingNumber: LAAR-EC-987654321
+                  trackingCarrierUrl: 'https://tracking.sendifico.com/LAAR-EC-987654321'
+                  incidentCount: null
+                  objectCreated: '2026-05-09T14:32:00.000Z'
+                  objectUpdated: '2026-05-09T16:10:00.000Z'
+                objectType: shipment
+        '400':
+          $ref: '#/components/responses/RequestValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: The shipment is not in a labelable state.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+              examples:
+                notPurchasedYet:
+                  value: { statusCode: 422, message: shipmentCarrierTokenNotFound }
+
+  /shipment/annulAndRefund/{id}:
+    patch:
+      operationId: annulAndRefundShipment
+      tags: [Shipments]
+      summary: Cancel + refund a shipment
+      description: |
+        Cancel a shipment and refund any payment. The terminal `shipment.status` depends on how far the shipment got:
+
+        - **Unpaid shipment** → `annulled` (nothing charged, no refund).
+        - **Paid shipment, before label generated** → `refunded` (instant wallet refund).
+        - **Paid shipment, after label generated** → `refunded` for most carriers; `refundPending` when the carrier needs a manual refund (it completes out-of-band — poll `GET /shipment/{id}` in a day to check the if the pending refund has been processed).
+
+        `annulReasonStatus` is **always required** (omitting it → `400 pApiShipmentAnnulReasonStatusRequired`); `annulReasonDetails` is an optional free-text note.
+      parameters:
+        - $ref: '#/components/parameters/ApiVersionHeader'
+        - $ref: '#/components/parameters/CountryHeader'
+        - $ref: '#/components/parameters/ShipmentIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ShipmentAnnulRequest' }
+            example:
+              annulReasonStatus: incorrectShipmentDetails
+              annulReasonDetails: Customer changed their mind
+      responses:
+        '200':
+          description: Shipment annulled (and refunded if it had been paid)
+          headers:
+            x-sendifico-api-version: { $ref: '#/components/headers/ApiVersionEcho' }
+            x-sendifico-country: { $ref: '#/components/headers/CountryEcho' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ShipmentDetailEnvelope' }
+              example:
+                payload:
+                  shipmentId: 4001234
+                  extId: my-shop-order-9876
+                  status: refunded
+                  isPaid: true
+                  preferredCarrierToken: ec_laar
+                  priceSubtotal: 0.88
+                  priceTotal: 1.01
+                  goodsCurrency: USD
+                  goodsCollection: 50.0
+                  goodsInsured: 50.0
+                  contents: [clothes]
+                  senderAddress:
+                    addressId: 2001234
+                    addressType: sender
+                    fullName: Juan Pérez
+                    company: Acme S.A.
+                    email: juan.perez@example.com
+                    streetLine1: Av. 9 de Octubre 1234
+                    reference: Edificio Plaza, oficina 201
+                    territoryBaseId: 'EC|:|GUAYAS|:|GUAYAQUIL|:|GUAYAQUIL'
+                    country: EC
+                    zip: '090313'
+                    lat: -2.1894
+                    lng: -79.8891
+                    phone: '+593987654321'
+                    objectCreated: '2026-04-12T09:00:00.000Z'
+                  recipientAddress:
+                    addressId: 2001235
+                    addressType: recipient
+                    fullName: María García
+                    company: null
+                    email: maria.garcia@example.com
+                    streetLine1: Av. Amazonas N34-451
+                    reference: Frente al parque
+                    territoryBaseId: 'EC|:|PICHINCHA|:|QUITO|:|QUITO'
+                    country: EC
+                    zip: '170135'
+                    lat: -0.1807
+                    lng: -78.4678
+                    phone: '+593998877665'
+                    objectCreated: '2026-04-12T09:05:00.000Z'
+                  trackingNumber: LAAR-EC-987654321
+                  trackingCarrierUrl: 'https://tracking.sendifico.com/LAAR-EC-987654321'
+                  incidentCount: null
+                  objectCreated: '2026-05-09T14:32:00.000Z'
+                  objectUpdated: '2026-05-09T16:10:00.000Z'
+                objectType: shipment
+        '400':
+          $ref: '#/components/responses/RequestValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: The shipment cannot be annulled in its current state.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+              examples:
+                alreadyDone:
+                  value: { statusCode: 422, message: shipmentAnnulAlreadyDone }
+
+  /shipment/generateLabelUrl/{id}:
+    post:
+      operationId: generateShipmentLabelUrl
+      tags: [How to create my first shipment]
+      summary: Get the label download link
+      description: |
+        Mint a short-lived presign URL to download the label PDF that was **already created during `generateTrackingNumber`**. The URL expires (7 days max); re-call to get a new one with a new expiry date. Hand the `downloadUrl` to a browser (or forward it to another system) to fetch the PDF directly from storage until `expiresAt`.
+
+        The URL **EXPIRES** — 7 days maximum. **Do NOT store the URL**: store the `shipmentId` and re-call this endpoint to get a fresh one, or download and archive the PDF bytes.
+
+        The minted `downloadUrl` is anonymous — the presign signature is the embedded credential, so it works without your API key until it expires. **Minting** it, however, requires `x-api-key`.
+
+        Send `type` (currently only `carrierDefault`, in the future we will support more printing sizes); an unknown type → `404 pApiShipmentLabelTypeNotFound`. Optional `disposition` controls how the browser handles the link: `inline` (default — preview opens in the browser) or `attachment` (force "Save as" best suited to download the file); any other value → `400 pApiShipmentLabelDispositionInvalid`.
+      parameters:
+        - $ref: '#/components/parameters/ApiVersionHeader'
+        - $ref: '#/components/parameters/CountryHeader'
+        - $ref: '#/components/parameters/ShipmentIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ShipmentGenerateLabelUrlRequest' }
+            example:
+              type: carrierDefault
+              disposition: inline
+      responses:
+        '200':
+          description: A freshly minted download URL
+          headers:
+            x-sendifico-api-version: { $ref: '#/components/headers/ApiVersionEcho' }
+            x-sendifico-country: { $ref: '#/components/headers/CountryEcho' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LabelDownloadEnvelope' }
+              example:
+                payload:
+                  type: carrierDefault
+                  downloadUrl: 'https://nbg1.your-objectstorage.com/sendifico-shipping-labels/labels/EC/2026/06/shipment-4001234-carrierDefault.pdf?X-Amz-Expires=604800&X-Amz-Signature=...'
+                  expiresAt: '2026-07-02T18:25:00.000Z'
+                objectType: shipmentLabel
+        '400':
+          $ref: '#/components/responses/RequestValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/LabelNotReady'
+
+  /address:
+    post:
+      operationId: createAddress
+      tags: [Addresses]
+      summary: Create a saved address
+      description: |
+        Create a saved `sender` or `recipient` address. The returned `addressId` is what you pass as `senderAddressId` / `recipientAddressId` on `POST /shipment`. `country` is required even though it is also encoded in the `territoryBaseId` prefix. Fields `fullName`, `territoryBaseId`, `streetLine1`, `phone`, `country` are required; all other fields are optional. It's highly suggested to set the `email` as we deliver tracking updates to the recipient's email automatically. We recommend to use coordinates (lat / lng) to ensure accurate delivery.
+      parameters:
+        - $ref: '#/components/parameters/ApiVersionHeader'
+        - $ref: '#/components/parameters/CountryHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AddressCreateRequest' }
+            example:
+              fullName: María García
+              company: Acme S.A.
+              territoryBaseId: 'EC|:|PICHINCHA|:|QUITO|:|QUITO'
+              country: EC
+              streetLine1: Av. Amazonas N24-03 y Colón
+              reference: Frente al parque
+              zip: '170135'
+              email: maria.garcia@example.com
+              phone: '+593987654321'
+              lat: -0.1807
+              lng: -78.4678
+              addressType: sender
+      responses:
+        '201':
+          description: Address saved
+          headers:
+            x-sendifico-api-version: { $ref: '#/components/headers/ApiVersionEcho' }
+            x-sendifico-country: { $ref: '#/components/headers/CountryEcho' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AddressEnvelope' }
+              example:
+                payload:
+                  addressId: 2001234
+                  fullName: María García
+                  company: Acme S.A.
+                  territoryBaseId: 'EC|:|PICHINCHA|:|QUITO|:|QUITO'
+                  country: EC
+                  streetLine1: Av. Amazonas N24-03 y Colón
+                  reference: Frente al parque
+                  zip: '170135'
+                  email: maria.garcia@example.com
+                  phone: '+593987654321'
+                  lat: -0.1807
+                  lng: -78.4678
+                  addressType: sender
+                  objectCreated: '2026-04-12T09:00:00.000Z'
+                objectType: address
+        '400':
+          $ref: '#/components/responses/RequestValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    get:
+      operationId: listAddresses
+      tags: [Addresses]
+      summary: List your saved addresses
+      description: |
+        List your saved sender and recipient addresses — use this to discover valid `senderAddressId` / `recipientAddressId` values. Each item carries its `addressType` (`sender` | `recipient`). Paginated (`?limit`/`?page` only).
+      parameters:
+        - $ref: '#/components/parameters/ApiVersionHeader'
+        - $ref: '#/components/parameters/CountryHeader'
+        - $ref: '#/components/parameters/LimitQuery'
+        - $ref: '#/components/parameters/PageQuery'
+      responses:
+        '200':
+          description: A page of addresses
+          headers:
+            x-sendifico-api-version: { $ref: '#/components/headers/ApiVersionEcho' }
+            x-sendifico-country: { $ref: '#/components/headers/CountryEcho' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AddressListEnvelope' }
+              example:
+                payload:
+                  count: 2
+                  data:
+                    - addressId: 2001234
+                      addressType: sender
+                      fullName: Juan Pérez
+                      company: Acme S.A.
+                      country: EC
+                      territoryBaseId: 'EC|:|GUAYAS|:|GUAYAQUIL|:|GUAYAQUIL'
+                      streetLine1: Av. 9 de Octubre 1234
+                      reference: Edificio Plaza, oficina 201
+                      zip: '090313'
+                      email: juan.perez@example.com
+                      phone: '+593987654321'
+                      lat: -2.1894
+                      lng: -79.8891
+                      objectCreated: '2026-04-12T09:00:00.000Z'
+                    - addressId: 2001235
+                      addressType: recipient
+                      fullName: María García
+                      company: Acme S.A.
+                      territoryBaseId: 'EC|:|PICHINCHA|:|QUITO|:|QUITO'
+                      country: EC
+                      streetLine1: Av. Amazonas N24-03 y Colón
+                      reference: Frente al parque
+                      zip: '170135'
+                      email: maria.garcia@example.com
+                      phone: '+593987654321'
+                      lat: -0.1807
+                      lng: -78.4678
+                      objectCreated: '2026-04-13T09:00:00.000Z'
+                  page: 1
+                  pageCount: 1
+                  total: 2
+                objectType: address
+        '400':
+          $ref: '#/components/responses/RequestValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /territory:
+    get:
+      operationId: listTerritories
+      tags: [Territories]
+      summary: List standardized territories
+      description: |
+        List the standardized territories Sendifico supports for the request's country (based on the `x-sendifico-country` header). Use the returned `territoryBaseId` EXACTLY (opaque string) as `senderAddress.territoryBaseId` / `recipientAddress.territoryBaseId`.
+
+        **Not paginated** — one call returns the full list . Fetch once at integration time and cache locally, refreshing periodically (e.g. weekly).
+
+        For Ecuador: `territory1Name` = Provincia, `territory2Name` = Cantón, `territory3Name` = Parroquia. `searchableText` is a ready-made label for autocomplete UIs.
+      parameters:
+        - $ref: '#/components/parameters/ApiVersionHeader'
+        - $ref: '#/components/parameters/CountryHeader'
+      responses:
+        '200':
+          description: The full territory list for the requested country
+          headers:
+            x-sendifico-api-version: { $ref: '#/components/headers/ApiVersionEcho' }
+            x-sendifico-country: { $ref: '#/components/headers/CountryEcho' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TerritoryListEnvelope' }
+              example:
+                payload:
+                  data:
+                    - { territoryBaseId: 'EC|:|AZUAY|:|CUENCA|:|CUENCA', territory1Name: AZUAY, territory2Name: CUENCA, territory3Name: CUENCA, searchableText: Azuay - Cuenca - Cuenca }
+                    - { territoryBaseId: 'EC|:|PICHINCHA|:|QUITO|:|QUITO', territory1Name: PICHINCHA, territory2Name: QUITO, territory3Name: QUITO, searchableText: Pichincha - Quito - Quito }
+                    - { territoryBaseId: 'EC|:|GUAYAS|:|GUAYAQUIL|:|GUAYAQUIL', territory1Name: GUAYAS, territory2Name: GUAYAQUIL, territory3Name: GUAYAQUIL, searchableText: Guayas - Guayaquil - Guayaquil }
+                objectType: territory
+        '400':
+          $ref: '#/components/responses/RequestValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: Visit https://app.sendifico.com/integrations to create your API key.
+
+  parameters:
+    ApiVersionHeader:
+      name: x-sendifico-api-version
+      in: header
+      required: true
+      description: Date-stamped API version (`YYYY-MM-DD`). Required on every request.
+      schema:
+        type: string
+        pattern: '^\d{4}-\d{2}-\d{2}$'
+        example: '2026-01-01'
+    CountryHeader:
+      name: x-sendifico-country
+      in: header
+      required: true
+      description: Target market, ISO 3166-1 alpha-2. Required on every request; echoed back.
+      schema:
+        type: string
+        example: EC
+    ShipmentIdPath:
+      name: id
+      in: path
+      required: true
+      description: The `shipmentId` returned by `POST /shipment`.
+      schema:
+        type: integer
+        format: int64
+        example: 4001234
+    LimitQuery:
+      name: limit
+      in: query
+      required: false
+      description: Page size (default 20, server-enforced max).
+      schema:
+        type: integer
+        default: 20
+        example: 20
+    PageQuery:
+      name: page
+      in: query
+      required: false
+      description: 1-indexed page number.
+      schema:
+        type: integer
+        default: 1
+        example: 1
+
+  headers:
+    ApiVersionEcho:
+      description: Echoes the resolved API version that serialized this response.
+      schema: { type: string, example: '2026-01-01' }
+    CountryEcho:
+      description: Echoes the resolved market country.
+      schema: { type: string, example: EC }
+
+  responses:
+    RequestValidationError:
+      description: >-
+        A required header or body field is missing or invalid. Common `message`
+        codes: `missingApiVersion`, `invalidApiVersion`, `unknownApiVersion`,
+        `pApiCountryMissing`, `pApiCountryUnsupported`,
+        `pApiQuotationCurrencyNotFound`, `pApiWalletUnsupportedPaymentMethod`,
+        `pApiShipmentPurchaseWithRequired`, `pApiShipmentAnnulReasonStatusRequired`,
+        `pApiShipmentLabelDispositionInvalid`.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+          examples:
+            missingApiVersion:
+              value: { statusCode: 400, message: missingApiVersion }
+            invalidApiVersion:
+              value: { statusCode: 400, message: invalidApiVersion }
+            unknownApiVersion:
+              value: { statusCode: 400, message: unknownApiVersion }
+            countryMissing:
+              value: { statusCode: 400, message: pApiCountryMissing }
+            countryUnsupported:
+              value: { statusCode: 400, message: pApiCountryUnsupported }
+            currencyNotSupported:
+              value: { statusCode: 400, message: pApiQuotationCurrencyNotFound }
+            pApiWalletUnsupportedPaymentMethod:
+              value: { statusCode: 400, message: pApiWalletUnsupportedPaymentMethod }
+            purchaseWithRequired:
+              value: { statusCode: 400, message: pApiShipmentPurchaseWithRequired }
+            annulReasonStatusRequired:
+              value: { statusCode: 400, message: pApiShipmentAnnulReasonStatusRequired }
+            labelDispositionInvalid:
+              value: { statusCode: 400, message: pApiShipmentLabelDispositionInvalid }
+    Unauthorized:
+      description: Missing or invalid API key.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+          example: { statusCode: 401, message: invalidApiKey }
+    NotFound:
+      description: Resource not found.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+          examples:
+            shipmentNotFound:
+              value: { statusCode: 404, message: pApiShipmentNotFound }
+            rateNotFound:
+              value: { statusCode: 404, message: pApiShipmentRateNotFound }
+            senderAddressNotFound:
+              value: { statusCode: 404, message: pApiAddressSenderNotFound }
+            recipientAddressNotFound:
+              value: { statusCode: 404, message: pApiAddressRecipientNotFound }
+            labelTypeNotFound:
+              value: { statusCode: 404, message: pApiShipmentLabelTypeNotFound }
+    Conflict:
+      description: >-
+        The request conflicts with the current state of your account. On
+        `POST /shipment` this means the supplied `extId` was already used by an
+        earlier shipment for this account — `extId` is unique per merchant order.
+        The create is NOT replayed and nothing is overwritten; retry with a fresh
+        `extId`, or look the existing shipment up via `GET /shipment`.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+          example: { statusCode: 409, message: pApiShipmentExtIdAlreadyUsed }
+    LabelNotReady:
+      description: >-
+        The shipment has no downloadable label yet — generate the tracking number
+        first with `PATCH /shipment/generateTrackingNumber/{id}`, then retry.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ApiError' }
+          example: { statusCode: 409, message: pApiShipmentLabelNotReady }
+
+  schemas:
+    # ── Shared value objects ────────────────────────────────────────────────
+    Parcel:
+      type: object
+      description: Parcel dimensions and weight. `weight` is kg; `length`/`width`/`height` are cm.
+      required: [weight, length, width, height]
+      properties:
+        weight: { type: number, description: Weight in kilograms., example: 1.5 }
+        length: { type: number, description: Length in centimeters., example: 30 }
+        width: { type: number, description: Width in centimeters., example: 20 }
+        height: { type: number, description: Height in centimeters., example: 10 }
+
+    QuoteAddress:
+      type: object
+      description: >-
+        Inline address used only for quoting. Only `territoryBaseId` and
+        `country` are used; full delivery details are collected at create time.
+      required: [territoryBaseId, country]
+      properties:
+        territoryBaseId:
+          type: string
+          description: Opaque territory id from `GET /territory`.
+          example: 'EC|:|GUAYAS|:|GUAYAQUIL|:|GUAYAQUIL'
+        country: { type: string, example: EC }
+
+    AddressInline:
+      type: object
+      description: >-
+        Inline recipient address on `POST /shipment` (alternative to a saved
+        `recipientAddressId`). Persisted as a fresh recipient address row.
+      required: [fullName, streetLine1, territoryBaseId, country, phone]
+      properties:
+        fullName: { type: string, example: María García }
+        streetLine1: { type: string, example: Av. Amazonas N24-03 y Colón }
+        territoryBaseId:
+          type: string
+          example: 'EC|:|PICHINCHA|:|QUITO|:|QUITO'
+        country: { type: string, example: EC }
+        phone: { type: string, description: E.164., example: '+593987654321' }
+        company: { type: [string, 'null'], example: Acme S.A. }
+        email: { type: [string, 'null'], format: email, example: maria.garcia@example.com }
+        reference: { type: [string, 'null'], example: Frente al parque }
+        zip: { type: [string, 'null'], example: '170135' }
+        lat: { type: [number, 'null'], example: -0.1807 }
+        lng: { type: [number, 'null'], example: -78.4678 }
+
+    Address:
+      type: object
+      description: A saved address as returned by the API.
+      properties:
+        addressId: { type: integer, format: int64, example: 2001234 }
+        addressType: { $ref: '#/components/schemas/AddressType' }
+        fullName: { type: string, example: Juan Pérez }
+        company: { type: [string, 'null'], example: Acme S.A. }
+        email: { type: [string, 'null'], format: email, example: juan.perez@example.com }
+        streetLine1: { type: string, example: Av. 9 de Octubre 1234 }
+        reference: { type: [string, 'null'], example: Edificio Plaza, oficina 201 }
+        territoryBaseId: { type: string, example: 'EC|:|GUAYAS|:|GUAYAQUIL|:|GUAYAQUIL' }
+        country: { type: string, example: EC }
+        zip: { type: [string, 'null'], example: '090313' }
+        lat: { type: [number, 'null'], example: -2.1894 }
+        lng: { type: [number, 'null'], example: -79.8891 }
+        phone: { type: string, example: '+593987654321' }
+        objectCreated: { type: string, format: date-time, example: '2026-04-12T09:00:00.000Z' }
+
+    QuotationRate:
+      type: object
+      description: One carrier's quote row.
+      properties:
+        quotationId: { type: integer, format: int64, example: 5001234 }
+        carrierToken: { type: string, example: ec_laar }
+        priceSubtotal: { type: number, example: 0.88 }
+        priceTotal: { type: number, example: 1.01 }
+        currency: { type: string, example: USD }
+        estimateDays: { type: integer, example: 2 }
+        available:
+          type: boolean
+          description: >-
+            Whether this carrier can actually be selected for a shipment with
+            these inputs (COD amount, insured value, parcel weight/dimensions,
+            recipient territory). A `false` row is still returned so you can show
+            the carrier as unavailable with a reason.
+          example: true
+        unavailableReason:
+          type: string
+          description: >-
+            Machine-readable constraint code, present only when `available` is
+            false. Known codes (extensible): `codLimitExceeded`,
+            `codNotSupported`, `insuredLimitExceeded`, `insuranceRequired`,
+            `maxWeightExceeded`, `maxDimensionExceeded`, `routeNotServedForCod`.
+          example: codLimitExceeded
+
+    Rate:
+      type: object
+      description: One carrier's rate in a shipment's rate list
+      properties:
+        rateId: { type: integer, format: int64, example: 7001234 }
+        carrierToken: { type: string, example: ec_laar }
+        priceSubtotal: { type: number, example: 0.88 }
+        priceTotal: { type: number, example: 1.01 }
+        currency: { type: string, example: USD }
+        estimateDays: { type: integer, example: 2 }
+        available:
+          type: boolean
+          description: Whether this rate can be selected for payment.
+          example: true
+        unavailableReason:
+          type: string
+          description: >-
+            Machine-readable constraint code, present only when `available` is
+            false. Known codes (extensible): `codLimitExceeded`,
+            `maxWeightExceeded`, `routeNotServedForCod`.
+          example: codLimitExceeded
+
+    Territory:
+      type: object
+      properties:
+        territoryBaseId:
+          type: string
+          description: Canonical opaque id; pass back unchanged on addresses.
+          example: 'EC|:|PICHINCHA|:|QUITO|:|QUITO'
+        territory1Name: { type: string, description: 'Level 1 division (EC: Provincia).', example: PICHINCHA }
+        territory2Name: { type: string, description: 'Level 2 division (EC: Cantón).', example: QUITO }
+        territory3Name: { type: string, description: 'Level 3 division (EC: Parroquia).', example: QUITO }
+        searchableText: { type: string, description: Human-readable label for typeahead UIs., example: Pichincha - Quito - Quito }
+
+    ApiError:
+      type: object
+      description: Standard error body.
+      required: [statusCode, message]
+      properties:
+        statusCode: { type: integer, example: 422 }
+        message:
+          type: string
+          description: Machine-readable error code (camelCase).
+          example: pApiShipmentPreferredRateRequired
+
+    PageMeta:
+      type: object
+      description: Pagination metadata shared by paginated list payloads.
+      properties:
+        count: { type: integer, description: Items on this page (≤ limit)., example: 1 }
+        page: { type: integer, description: The page number returned., example: 1 }
+        pageCount: { type: integer, description: Total number of pages., example: 1 }
+        total: { type: integer, description: Total items across all pages., example: 1 }
+
+    # ── Enums ───────────────────────────────────────────────────────────────
+    AddressType:
+      type: string
+      enum: [sender, recipient]
+
+    GoodsCurrency:
+      type: string
+      description: ISO 4217 code for declared-goods amounts. Only `USD` is supported in this version.
+      enum: [USD]
+
+    PurchaseWith:
+      type: string
+      description: >-
+        Wallet source to pay from — a strict subset of the internal payment
+        methods. REQUIRED (no default): choose one explicitly.
+      enum: [walletTokenized, walletAvailable]
+
+    ProductCategory:
+      type: string
+      description: Canonical parcel-content classification.
+      enum:
+        - agriculturalSupply
+        - audioAndVideoAccessory
+        - babyProduct
+        - beverage
+        - book
+        - camera
+        - cellularPhone
+        - clothes
+        - clothingAccessory
+        - computer
+        - decoration
+        - documents
+        - dron
+        - electromenor
+        - food
+        - householdAppliance
+        - jewelryAndWatch
+        - kitchenware
+        - medicalEquipment
+        - medicalSupply
+        - musicalInstrument
+        - party
+        - personalCareProduct
+        - petAccessory
+        - petFood
+        - printer
+        - shoeAndFootwear
+        - spareparts
+        - sportingArticle
+        - stationery
+        - television
+        - toy
+        - vehicleAccessory
+        - videoGame
+
+    ShipmentStatus:
+      type: string
+      description: Lifecycle status. `isPaid` distinguishes an unpaid `quoted` draft from a paid one.
+      enum:
+        - quoted
+        - labelCreated
+        - pickupRequested
+        - pickupNotFound
+        - pickingUp
+        - pickedUp
+        - inTransit
+        - goodsCollectionInTransit
+        - returnToSender
+        - delivered
+        - annulled
+        - refunded
+        - refundPending
+
+    ShipmentAnnulReasonStatus:
+      type: string
+      enum:
+        - incorrectAddress
+        - incorrectShipmentDetails
+        - fullfilmentIssue
+        - recipientRefusedDelivery
+        - recipientNotAvailable
+        - recipientCanceledOrder
+        - platformCost
+        - deliveryDelay
+        - carrierOutOfCoverageArea
+        - carrierOutOfOfficeSchedule
+        - other
+
+    # ── Request bodies ──────────────────────────────────────────────────────
+    QuotationRequest:
+      type: object
+      required: [senderAddress, recipientAddress, parcel, goodsCurrency]
+      properties:
+        senderAddress: { $ref: '#/components/schemas/QuoteAddress' }
+        recipientAddress: { $ref: '#/components/schemas/QuoteAddress' }
+        parcel: { $ref: '#/components/schemas/Parcel' }
+        goodsCollection: { type: number, description: Cash-on-delivery amount to collect; 0 for none., example: 50.0 }
+        goodsInsured: { type: number, description: Declared insurance value; 0 for none., example: 50.0 }
+        goodsCurrency: { $ref: '#/components/schemas/GoodsCurrency' }
+
+    ShipmentCreateRequest:
+      type: object
+      description: >-
+        Provide the recipient EITHER inline via `recipientAddress` OR as a saved
+        `recipientAddressId` — exactly one.
+      required: [senderAddressId, parcel, contents, goodsCollection, goodsInsured, goodsCurrency]
+      properties:
+        senderAddressId:
+          type: integer
+          format: int64
+          description: Id of a saved sender address (`GET /address` / `POST /address`).
+          example: 2001234
+        recipientAddressId:
+          type: integer
+          format: int64
+          description: Id of a saved recipient address (mutually exclusive with `recipientAddress`).
+          example: 2001235
+        recipientAddress: { $ref: '#/components/schemas/AddressInline' }
+        parcel: { $ref: '#/components/schemas/Parcel' }
+        contents:
+          type: array
+          description: Exactly one product-category value (some carriers require content classification).
+          items: { $ref: '#/components/schemas/ProductCategory' }
+          minItems: 1
+          maxItems: 1
+          example: [clothes]
+        goodsCollection: { type: number, example: 50.0 }
+        goodsInsured: { type: number, example: 50.0 }
+        goodsCurrency: { $ref: '#/components/schemas/GoodsCurrency' }
+        extId:
+          type: string
+          description: >-
+            Optional merchant-supplied external id (your own order id), echoed back on every shipment
+            response. Must be UNIQUE per account — re-using an extId already accepted for this account is
+            rejected with 409 pApiShipmentExtIdAlreadyUsed; the create is never replayed and nothing is
+            overwritten.
+          example: my-shop-order-9876
+
+    ShipmentPurchaseRequest:
+      type: object
+      required: [purchaseWith]
+      properties:
+        preferredRateObjectId:
+          type: integer
+          format: int64
+          description: The chosen rate's `rateId` from the create response's `rates[]`.
+          example: 7001234
+        purchaseWith: { $ref: '#/components/schemas/PurchaseWith' }
+
+    ShipmentEditRequest:
+      type: object
+      description: >-
+        Partial edit of an UNPAID `quoted` draft. EVERY field is optional and
+        ONLY the fields you send are changed — omitted fields are left untouched.
+        After persisting the edits the draft is ALWAYS re-quoted: the prior
+        `rates[]` are discarded, any selected rate is cleared, `status` stays
+        `quoted`, and a fresh `rates[]` list is returned.
+
+        Provide the recipient EITHER as a saved `recipientAddressId` OR inline via
+        `recipientAddress` — never both. Address edits never mutate a saved/template
+        address; they re-point this draft to a fresh owned address copy.
+      properties:
+        senderAddressId:
+          type: integer
+          format: int64
+          description: Id of a saved sender address to re-point this draft to.
+          example: 2001234
+        recipientAddressId:
+          type: integer
+          format: int64
+          description: Id of a saved recipient address (mutually exclusive with `recipientAddress`).
+          example: 2001235
+        recipientAddress: { $ref: '#/components/schemas/AddressInline' }
+        parcel: { $ref: '#/components/schemas/Parcel' }
+        contents:
+          type: array
+          items: { $ref: '#/components/schemas/ProductCategory' }
+          minItems: 1
+          maxItems: 1
+          example: [clothes]
+        goodsCollection: { type: number, description: Cash-on-delivery amount to collect; 0 for none., example: 75.0 }
+        goodsInsured: { type: number, description: Declared insurance value; 0 for none., example: 75.0 }
+        goodsCurrency: { $ref: '#/components/schemas/GoodsCurrency' }
+
+    ShipmentAnnulRequest:
+      type: object
+      required: [annulReasonStatus]
+      properties:
+        annulReasonStatus: { $ref: '#/components/schemas/ShipmentAnnulReasonStatus' }
+        annulReasonDetails: { type: string, description: Optional free-text note., example: Customer changed their mind }
+
+    AddressCreateRequest:
+      type: object
+      required: [fullName, territoryBaseId, country, streetLine1, phone, addressType]
+      properties:
+        fullName: { type: string, example: María García }
+        company: { type: string, example: Acme S.A. }
+        territoryBaseId: { type: string, example: 'EC|:|PICHINCHA|:|QUITO|:|QUITO' }
+        country: { type: string, example: EC }
+        streetLine1: { type: string, example: Av. Amazonas N24-03 y Colón }
+        reference: { type: string, example: Frente al parque }
+        zip: { type: string, description: Optional postal code., example: '170135' }
+        email: { type: string, format: email, example: maria.garcia@example.com }
+        phone: { type: string, description: E.164., example: '+593987654321' }
+        lat: { type: number, example: -0.1807 }
+        lng: { type: number, example: -78.4678 }
+        addressType: { $ref: '#/components/schemas/AddressType' }
+
+    # ── Resource payloads ───────────────────────────────────────────────────
+    ShipmentDraft:
+      type: object
+      description: A freshly-created unpaid shipment draft with its rate list
+      properties:
+        shipmentId: { type: integer, format: int64, example: 4001234 }
+        extId:
+          type: string
+          nullable: true
+          description: Merchant-supplied external id echoed back (`null` when none was supplied on create); unique per account (re-use rejected on create with 409 pApiShipmentExtIdAlreadyUsed).
+          example: my-shop-order-9876
+        status: { $ref: '#/components/schemas/ShipmentStatus' }
+        isPaid: { type: boolean, example: false }
+        goodsCollection: { type: number, example: 50.0 }
+        goodsInsured: { type: number, example: 50.0 }
+        contents:
+          type: array
+          items: { $ref: '#/components/schemas/ProductCategory' }
+          example: [clothes]
+        senderAddress:
+          allOf: [{ $ref: '#/components/schemas/Address' }]
+          description: The full sender address embedded — no second call needed. Its id is `senderAddress.addressId`.
+        recipientAddress:
+          allOf: [{ $ref: '#/components/schemas/Address' }]
+          description: The full recipient address embedded — no second call needed. Its id is `recipientAddress.addressId`.
+        objectCreated: { type: string, format: date-time, example: '2026-05-09T14:32:00.000Z' }
+        objectUpdated: { type: string, format: date-time, example: '2026-05-09T14:32:00.000Z' }
+        goodsCurrency: { type: string, example: USD }
+        trackingNumber: { type: [string, 'null'], example: null }
+        trackingCarrierUrl: { type: [string, 'null'], example: null }
+        incidentCount: { type: [integer, 'null'], example: null }
+        rates:
+          type: array
+          description: rate list
+          items: { $ref: '#/components/schemas/Rate' }
+
+    ShipmentDetail:
+      type: object
+      description: |
+        A shipment's current state — the single response shape for `GET /shipment/{id}`, `GET /shipment` (list items), and the act endpoints (`purchase`, `generateTrackingNumber`, `annulAndRefund`). Each address is surfaced as the FULL embedded object (`senderAddress` / `recipientAddress`, with the id at `senderAddress.addressId`) — the complete address travels in every shipment response, so there is no second call to make (there is no `GET /address/{id}` endpoint). `goodsCurrency` is the shipment's own currency (always present). Rate-derived (`preferredCarrierToken`/`priceSubtotal`/`priceTotal`) and `trackingNumber`/`trackingCarrierUrl` fields are `null` until the shipment has its tracking number created. To download the label PDF, mint a link with `POST /shipment/generateLabelUrl/{id}`.
+      properties:
+        shipmentId: { type: integer, format: int64, example: 4001234 }
+        extId:
+          type: string
+          nullable: true
+          description: Merchant-supplied external id echoed back (`null` when none was supplied on create); unique per account (re-use rejected on create with 409 pApiShipmentExtIdAlreadyUsed).
+          example: my-shop-order-9876
+        status: { $ref: '#/components/schemas/ShipmentStatus' }
+        isPaid: { type: boolean, example: true }
+        preferredCarrierToken: { type: [string, 'null'], example: ec_laar }
+        priceSubtotal: { type: [number, 'null'], example: 0.88 }
+        priceTotal: { type: [number, 'null'], example: 1.01 }
+        goodsCurrency: { type: string, example: USD }
+        goodsCollection: { type: number, example: 50.0 }
+        goodsInsured: { type: number, example: 50.0 }
+        contents:
+          type: array
+          items: { $ref: '#/components/schemas/ProductCategory' }
+          example: [clothes]
+        senderAddress:
+          allOf: [{ $ref: '#/components/schemas/Address' }]
+          description: The full sender address embedded — no second call needed. Its id is `senderAddress.addressId`.
+        recipientAddress:
+          allOf: [{ $ref: '#/components/schemas/Address' }]
+          description: The full recipient address embedded — no second call needed. Its id is `recipientAddress.addressId`.
+        trackingNumber: { type: [string, 'null'], example: LAAR-EC-987654321 }
+        trackingCarrierUrl: { type: [string, 'null'], example: 'https://carrier.example.com/tracking/LAAR-EC-987654321' }
+        incidentCount:
+          type: integer
+          nullable: true
+          example: 0
+          description: >-
+            Number of open delivery incidents recorded for this shipment. `null` means no incidents have been
+            registered. When a shipment is **in transit** (`status: "inTransit"`) and `incidentCount` is greater
+            than `0`, treat it as an alert requiring manual attention — the delivery has a problem that cannot
+            be resolved automatically. Recommended actions: contact Sendifico customer support, or reach out
+            directly to the carrier using the `trackingNumber` to investigate and resolve the issue.
+        objectCreated: { type: string, format: date-time, example: '2026-05-09T14:32:00.000Z' }
+        objectUpdated: { type: string, format: date-time, example: '2026-05-09T16:10:00.000Z' }
+
+    ShipmentGenerateLabelUrlRequest:
+      type: object
+      description: >-
+        Request body for `POST /shipment/generateLabelUrl/{id}` — select which label to mint a download URL for, and how the browser should handle it.
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [carrierDefault]
+          description: Which label to mint a URL for. Currently only `carrierDefault` (the carrier's default-size PDF); the set is forward-compatible.
+          example: carrierDefault
+        disposition:
+          type: string
+          enum: [inline, attachment]
+          default: inline
+          description: >-
+            Content-Disposition of the minted URL: `inline` (default — preview in the browser) or
+            `attachment` (force "Save as"). Any other value → `400 pApiShipmentLabelDispositionInvalid`.
+          example: inline
+
+    LabelDownload:
+      type: object
+      description: >-
+        A freshly minted, time-limited download URL for a shipment label — the response of
+        `POST /shipment/generateLabelUrl/{id}`.
+      properties:
+        type:
+          type: string
+          enum: [carrierDefault]
+          example: carrierDefault
+        downloadUrl:
+          type: string
+          format: uri
+          description: Anonymous, browser-pasteable URL — works without an API key until `expiresAt` (7-day max).
+          example: 'https://nbg1.your-objectstorage.com/sendifico-shipping-labels/labels/EC/2026/06/shipment-4001234-carrierDefault.pdf?X-Amz-Expires=604800&X-Amz-Signature=...'
+        expiresAt:
+          type: string
+          format: date-time
+          description: Absolute ISO-8601 deadline after which `downloadUrl` stops working (7-day max).
+          example: '2026-07-02T18:25:00.000Z'
+
+    # ── Response envelopes ──────────────────────────────────────────────────
+    QuotationListEnvelope:
+      type: object
+      properties:
+        payload:
+          allOf:
+            - $ref: '#/components/schemas/PageMeta'
+            - type: object
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '#/components/schemas/QuotationRate' }
+        objectType: { type: string, const: quotation }
+
+    ShipmentDraftEnvelope:
+      type: object
+      properties:
+        payload: { $ref: '#/components/schemas/ShipmentDraft' }
+        objectType: { type: string, const: shipment }
+
+    ShipmentDetailEnvelope:
+      type: object
+      properties:
+        payload: { $ref: '#/components/schemas/ShipmentDetail' }
+        objectType: { type: string, const: shipment }
+
+    LabelDownloadEnvelope:
+      type: object
+      properties:
+        payload: { $ref: '#/components/schemas/LabelDownload' }
+        objectType: { type: string, const: shipmentLabel }
+
+    ShipmentListEnvelope:
+      type: object
+      properties:
+        payload:
+          allOf:
+            - $ref: '#/components/schemas/PageMeta'
+            - type: object
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '#/components/schemas/ShipmentDetail' }
+        objectType: { type: string, const: shipment }
+
+    AddressEnvelope:
+      type: object
+      properties:
+        payload: { $ref: '#/components/schemas/Address' }
+        objectType: { type: string, const: address }
+
+    AddressListEnvelope:
+      type: object
+      properties:
+        payload:
+          allOf:
+            - $ref: '#/components/schemas/PageMeta'
+            - type: object
+              properties:
+                data:
+                  type: array
+                  items: { $ref: '#/components/schemas/Address' }
+        objectType: { type: string, const: address }
+
+    TerritoryListEnvelope:
+      type: object
+      properties:
+        payload:
+          type: object
+          properties:
+            data:
+              type: array
+              items: { $ref: '#/components/schemas/Territory' }
+        objectType: { type: string, const: territory }
