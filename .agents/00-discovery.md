@@ -105,7 +105,7 @@ Crea un borrador de envío y obtén la lista de rates de todas las transportador
 - vehicleAccessory
 - videoGame
 
-> Consultar endpoint luego de seleccionar/crear la dirección mostrar dinamicamente los couiriers que devuelve sendifico en rates.
+> Consultar endpoint luego de seleccionar/crear la dirección mostrar dinamicamente los couriers que devuelve sendifico en rates.
 
 ### 3. PATCH /shipment/purchase/{id} 
 Elige una rate de tu transportadora preferida y págala desde tu billetera. Antes de poder pagar una etiqueta de envío, debes recargar tu billetera en https://app.sendifico.com/wallet.
@@ -118,13 +118,13 @@ Elige una rate de tu transportadora preferida y págala desde tu billetera. Ante
 }
 ```
 
-> Definir un estado para poder enviar desde el backoffice cuando se confirme el pago y se quiera 
+> Definir un estado para poder enviar desde el backoffice cuando se confirme el pago. `Processing`
 
 ### 4. PATCH /shipment/generateTrackingNumber/{id} 
 - Contacta los sistemas de la transportadora para generar un envío y obtener un trackingNumber válido. Idempotente — generado una vez, las llamadas repetidas devuelven el mismo número.
 
 - Momento — crea esto cerca del despacho. Idealmente llámalo el mismo día (o el día antes) en que el envío se entrega a la transportadora (recogida o entrega en una sucursal). Algunas transportadoras (p. ej. Tramaco) anulan automáticamente un número de seguimiento tras ~1-3 días de inactividad — si eso ocurre debes crear uno nuevo. No crees números de seguimiento con mucha anticipación al despacho real.
-> Usar un estado de order para poder generar el tracking number
+> Usar un estado de order para poder generar el tracking number. `Paquete recogido`
 
 - Esta llamada puede fallar si la API de la transportadora está caída — eso está fuera del control de Sendifico, por lo que tu integración DEBE verificar que un trackingNumber fue efectivamente devuelto antes de continuar.
 
@@ -132,4 +132,12 @@ Elige una rate de tu transportadora preferida y págala desde tu billetera. Ante
 No tiene body
 ```
 
-5. POST /shipment/generateLabelUrl/{id} — genera una URL de corta duración para descargar el PDF de la etiqueta. La URL expira (7 días máximo); vuelve a llamar para obtener una nueva.
+### 5. POST /shipment/generateLabelUrl/{id} 
+Genera una URL de corta duración para descargar el PDF de la etiqueta. La URL expira (7 días máximo); vuelve a llamar para obtener una nueva.
+
+```json
+{
+  "type": "carrierDefault", -> carrierDefault hasta que modifquen sendifico
+  "disposition": "inline" -> inline: preview en navegador o attachment: descargable
+}
+```
