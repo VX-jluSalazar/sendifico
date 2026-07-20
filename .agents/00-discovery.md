@@ -16,11 +16,11 @@ Devuelve una lista de cotizaciones/tarifas de todas las transportadoras, según 
 {
   "senderAddress": {
     "territoryBaseId": "EC|:|GUAYAS|:|GUAYAQUIL|:|GUAYAQUIL", -> Obtener de sendifico GET /territory
-    "country": "EC" -> Siempre EC
+    "country": "EC" -> EC -> configuracion en admin
   },
   "recipientAddress": {
     "territoryBaseId": "EC|:|PICHINCHA|:|QUITO|:|QUITO",-> Obtener de sendifico GET /territory
-    "country": "EC" -> Siempre EC
+    "country": "EC" -> EC -> configuracion en admin
   },
   "parcel": { -> de producto
     "weight": 1.5,
@@ -30,7 +30,7 @@ Devuelve una lista de cotizaciones/tarifas de todas las transportadoras, según 
   },
   "goodsCollection": 50, -> Dinero que el transportista debe cobrar al cliente al entregar (contra entrega)
   "goodsInsured": 50, -> Valor de la mercancía que se declara para cobertura de seguro
-  "goodsCurrency": "USD" -> Siempre USD
+  "goodsCurrency": "USD" -> USD -> configuracion en admin
 }
 ```
 
@@ -48,7 +48,7 @@ Crea un borrador de envío y obtén la lista de rates de todas las transportador
     "streetLine1": "Av. Amazonas N24-03 y Colón", -> (PRESTASHOP) Address - address1 & address2
     "reference": "Frente al parque", -> (PRESTASHOP) Address - other
     "territoryBaseId": "EC|:|PICHINCHA|:|QUITO|:|QUITO",-> Obtener de sendifico GET /territory
-    "country": "EC", -> Siempre EC
+    "country": "EC", -> EC -> configuracion en admin
     "zip": "170135", -> (PRESTASHOP) Address - postcode
     "lat": -0.1807,  -> Obtener con js de la ubicacion del cliente
     "lng": -78.4678, -> Obtener con js de la ubicacion del cliente
@@ -65,7 +65,7 @@ Crea un borrador de envío y obtén la lista de rates de todas las transportador
   ],
   "goodsCollection": 50, -> Dinero que el transportista debe cobrar al cliente al entregar (contra entrega)
   "goodsInsured": 50, -> Valor de la mercancía que se declara para cobertura de seguro
-  "goodsCurrency": "USD" -> Siempre USD
+  "goodsCurrency": "USD" -> USD -> configuracion en admin
 }
 ```
 
