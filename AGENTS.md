@@ -46,7 +46,7 @@ Pull requests should include:
 ## Security & Configuration Tips
 Never commit API keys, wallet credentials, or production customer data. Keep Sendifico secrets in environment-specific configuration, and verify country/version headers against `.agents/SOT_Sendifico_API.yml` before releasing.
 
-• # Resumen técnico del módulo
+# Resumen técnico del módulo
 
   ## Información confirmada
 
@@ -79,8 +79,9 @@ Never commit API keys, wallet credentials, or production customer data. Keep Sen
 
   Arquitectura prevista para el módulo:
 
-  - módulo nuevo con identidad técnica sendifico,
-  - namespace base vendorizado tipo Vendor\Sendifico,
+  - módulo nuevo con identidad técnica vx_sendifico,
+  - author Velox,
+  - namespace base vendorizado Vx\Sendifico,
   - integración principal con checkout clásico de PrestaShop,
   - configuración moderna en BO,
   - servicios desacoplados para:
@@ -135,7 +136,7 @@ Never commit API keys, wallet credentials, or production customer data. Keep Sen
 
   - PrestaShop 8.2.1,
   - checkout clásico,
-  - módulo sendifico,
+  - módulo vx_sendifico,
   - API Sendifico,
   - carriers persistentes internos de PrestaShop.
 
@@ -222,7 +223,7 @@ Never commit API keys, wallet credentials, or production customer data. Keep Sen
   Acordado hasta ahora:
 
   - usar la skill prestashop-module-development como base de convenciones,
-  - sendifico será un módulo nuevo,
+  - vx_sendifico será un módulo nuevo,
   - integración enfocada en checkout clásico,
   - usar carriers persistentes mapeados,
   - mostrar solo carriers presentes en la respuesta de cotización,
@@ -236,7 +237,7 @@ Never commit API keys, wallet credentials, or production customer data. Keep Sen
   - detectar COD por método de pago configurable,
   - mantener logs técnicos con payload resumido,
   - usar tabla propia completa,
-  - política de desinstalación configurable.
+  - política de desinstalación destructiva: borrar todo al desinstalar.
 
   ### Aspectos fuera de alcance
 
@@ -253,48 +254,61 @@ Never commit API keys, wallet credentials, or production customer data. Keep Sen
 
   Estas no están totalmente cerradas, pero son las que tomaría si el resumen se aprueba:
 
-  - el namespace concreto final será algo como Vendor\Sendifico, pendiente de definir el vendor real,
-  - el estado Courier no pagado será un estado de pedido local del módulo, no necesariamente el único estado operativo adicional,
+  - el namespace concreto final será Vx\Sendifico,
+  - el estado Courier no pagado será el único estado adicional del módulo,
   - Creative Elements no altera el checkout nativo de forma que obligue a una integración distinta,
   - el módulo podrá crear y administrar sus propios carriers persistentes sin conflicto con la configuración actual de la tienda.
 
   ———
 
-  ## Decisiones pendientes
+  ## Decisiones cerradas y pendientes
 
-  Estos puntos todavía requieren confirmación o refinamiento antes del plan técnico final:
+  Cerrado:
 
-  1. La versión exacta de PHP objetivo.
-     Ahora solo está confirmado > 8.
+  1. Versión exacta de PHP objetivo: 8.2.30.
 
-  2. La regla exacta para resolver contents cuando haya productos con categorías Sendifico distintas.
-     Está confirmado el mapeo configurable, pero no la política final de “dominante”.
+  2. Nombre técnico del módulo: vx_sendifico.
 
-  3. La regla exacta de cálculo heurístico de dimensiones del paquete.
-     Está orientada pero no cerrada formalmente.
+  3. Author: Velox.
 
-  4. Los hooks y puntos técnicos exactos del checkout clásico que se usarán para:
+  4. Namespace base: Vx\Sendifico.
+
+  5. Checkout objetivo: checkout default/clásico de PrestaShop confirmado.
+
+  6. Desinstalación: borrar todo al desinstalar.
+
+  7. Purchase: usar purchaseWith walletAvailable.
+
+  8. Estado adicional: solo Courier no pagado.
+
+  9. Contents dominante: categoría que más se repite; en empate domina la de mayor peso acumulado.
+
+  10. Defaults operativos: deben configurarse desde BO, incluyendo país, moneda, medidas y demás valores por defecto.
+
+  11. Territorio checkout: selectores separados provincia -> cantón -> ciudad, con filtros encadenados.
+
+  Pendiente de refinamiento técnico:
+
+  1. La regla exacta de cálculo heurístico de dimensiones del paquete cuando falten datos de producto.
+     Está orientada a defaults configurables desde BO, pero falta definir los campos y valores iniciales.
+
+  2. Los hooks y puntos técnicos exactos del checkout clásico que se usarán para:
       - capturar territorio,
       - cotizar,
       - recalcular transportistas,
       - persistir selección del carrier/rate.
 
-  5. El detalle del modelo de datos local.
+  3. El detalle del modelo de datos local.
      Está confirmado que habrá tabla propia completa, pero no el esquema exacto.
 
-  6. La UX exacta del selector de territorio.
-     Está claro que será explícito en checkout, pero no si será:
-      - un selector único de territorio,
-      - o selectores separados provincia/cantón/ciudad con resolución interna.
-
-  7. La política precisa de fallback para lat/lng.
+  4. La política precisa de fallback para lat/lng.
      Confirmado “opcional con fallback”, pero no el fallback exacto.
 
     Indice general propuesto del plan técnico:
 
   1. Preparación y diagnóstico
   2. Diseño funcional y arquitectura del módulo
-  3. Estructura base del módulo sendifico
+  3. Estructura base del módulo vx_sendifico
   4. Configuración Back Office y parámetros por tienda
   5. Sincronización y caché de territorios y remitentes
   6. Modelo de datos y persistencia de trazabilidad
@@ -306,5 +320,3 @@ Never commit API keys, wallet credentials, or production customer data. Keep Sen
   12. Seguridad, permisos, logs y manejo de errores
   13. Instalación, actualizaciones, desinstalación y compatibilidad multitienda
   14. Estrategia de pruebas, validación y despliegue
-
-    Si ese índice te sirve, en el siguiente mensaje desarrollo la Fase 1 — Preparación y diagnóstico con el formato completo que definiste.

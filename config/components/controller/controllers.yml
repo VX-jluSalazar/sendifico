@@ -1,0 +1,6 @@
+# Admin controllers.
+services:
+    Vx\Sendifico\Controller\Admin\ConfigurationController:
+        public: true
+        tags:
+            - { name: controller.service_arguments }

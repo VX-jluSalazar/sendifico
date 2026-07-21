@@ -1,0 +1,22 @@
+{
+  "name": "velox/vx-sendifico",
+  "description": "PrestaShop module integrating Velox stores with Sendifico shipping services.",
+  "type": "prestashop-module",
+  "license": "proprietary",
+  "authors": [
+    {
+      "name": "Velox"
+    }
+  ],
+  "require": {
+    "php": ">=8.2"
+  },
+  "autoload": {
+    "psr-4": {
+      "Vx\\Sendifico\\": "src/"
+    }
+  },
+  "config": {
+    "prepend-autoloader": false
+  }
+}

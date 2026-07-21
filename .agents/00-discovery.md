@@ -113,8 +113,7 @@ Elige una rate de tu transportadora preferida y págala desde tu billetera. Ante
  ```json
  {
   "preferredRateObjectId": 7001234, -> el rateId de la tarifa elegida,
-  "purchaseWith": "walletTokenized" -> puede ser uno de los dos walletTokenized o walletAvailable
-                                    | Preguntar la diferencia entre walletTokenized y walletAvailable
+  "purchaseWith": "walletAvailable" -> decision v1: usar walletAvailable
 }
 ```
 
