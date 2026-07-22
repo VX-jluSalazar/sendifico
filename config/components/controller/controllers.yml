@@ -2,5 +2,7 @@
 services:
     Vx\Sendifico\Controller\Admin\ConfigurationController:
         public: true
+        autowire: true
+        autoconfigure: true
         tags:
             - { name: controller.service_arguments }

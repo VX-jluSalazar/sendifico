@@ -1,15 +1,102 @@
 {% extends '@PrestaShop/Admin/layout.html.twig' %}
 
 {% block content %}
-  <div class="card">
-    <h3 class="card-header">
-      <i class="material-icons">local_shipping</i>
-      {{ 'Velox Sendifico'|trans({}, 'Modules.Vxsendifico.Admin') }}
-    </h3>
-    <div class="card-body">
-      <p class="mb-0">
-        {{ 'The module baseline is installed. Configuration fields will be added in the next phase.'|trans({}, 'Modules.Vxsendifico.Admin') }}
-      </p>
+  {% if configurationWarnings is not empty %}
+    <div class="alert alert-warning" role="alert">
+      <p class="mb-2"><strong>{{ 'Incomplete configuration detected for %context%.'|trans({'%context%': shopContextLabel}, 'Modules.Vxsendifico.Admin') }}</strong></p>
+      <ul class="mb-0">
+        {% for warning in configurationWarnings %}
+          <li>{{ warning }}</li>
+        {% endfor %}
+      </ul>
     </div>
-  </div>
+  {% endif %}
+
+  {{ form_start(configurationForm) }}
+    <div class="card mb-3">
+      <h3 class="card-header">
+        <i class="material-icons">vpn_key</i>
+        {{ 'Credentials'|trans({}, 'Modules.Vxsendifico.Admin') }}
+      </h3>
+      <div class="card-body">
+        {{ form_row(configurationForm.api_key) }}
+        <div class="row">
+          <div class="col-md-6">
+            {{ form_row(configurationForm.api_version) }}
+          </div>
+          <div class="col-md-3">
+            {{ form_row(configurationForm.country) }}
+          </div>
+          <div class="col-md-3">
+            {{ form_row(configurationForm.currency) }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <h3 class="card-header">
+        <i class="material-icons">store</i>
+        {{ 'Sender and Checkout'|trans({}, 'Modules.Vxsendifico.Admin') }}
+      </h3>
+      <div class="card-body">
+        {{ form_row(configurationForm.sender_reference) }}
+        {{ form_row(configurationForm.cod_payment_methods) }}
+        {{ form_row(configurationForm.allow_incomplete_checkout_address) }}
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <h3 class="card-header">
+        <i class="material-icons">local_shipping</i>
+        {{ 'Operations'|trans({}, 'Modules.Vxsendifico.Admin') }}
+      </h3>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            {{ form_row(configurationForm.purchase_with) }}
+          </div>
+          <div class="col-md-6">
+            {{ form_row(configurationForm.auto_purchase_enabled) }}
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-3">
+            {{ form_row(configurationForm.default_weight) }}
+          </div>
+          <div class="col-md-3">
+            {{ form_row(configurationForm.default_length) }}
+          </div>
+          <div class="col-md-3">
+            {{ form_row(configurationForm.default_width) }}
+          </div>
+          <div class="col-md-3">
+            {{ form_row(configurationForm.default_height) }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 class="card-header">
+        <i class="material-icons">article</i>
+        {{ 'Logs'|trans({}, 'Modules.Vxsendifico.Admin') }}
+      </h3>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            {{ form_row(configurationForm.enable_debug_logs) }}
+          </div>
+          <div class="col-md-6">
+            {{ form_row(configurationForm.log_retention_days) }}
+          </div>
+        </div>
+      </div>
+      <div class="card-footer">
+        <button class="btn btn-primary" type="submit">
+          {{ 'Save'|trans({}, 'Admin.Actions') }}
+        </button>
+      </div>
+    </div>
+  {{ form_end(configurationForm) }}
 {% endblock %}

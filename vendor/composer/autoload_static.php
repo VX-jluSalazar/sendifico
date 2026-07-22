@@ -22,6 +22,13 @@ class ComposerStaticInit72001f03eb17aaf3c30b17cf8b6cac3e
 
     public static $classMap = array (
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
+        'Vx\\Sendifico\\Configuration\\ConfigurationKeys' => __DIR__ . '/../..' . '/src/Configuration/ConfigurationKeys.php',
+        'Vx\\Sendifico\\Configuration\\SendificoDataConfiguration' => __DIR__ . '/../..' . '/src/Configuration/SendificoDataConfiguration.php',
+        'Vx\\Sendifico\\Configuration\\SendificoFormDataProvider' => __DIR__ . '/../..' . '/src/Configuration/SendificoFormDataProvider.php',
+        'Vx\\Sendifico\\Controller\\Admin\\ConfigurationController' => __DIR__ . '/../..' . '/src/Controller/Admin/ConfigurationController.php',
+        'Vx\\Sendifico\\Form\\Admin\\Type\\SendificoConfigurationType' => __DIR__ . '/../..' . '/src/Form/Admin/Type/SendificoConfigurationType.php',
+        'Vx\\Sendifico\\Install\\ConfigurationInstaller' => __DIR__ . '/../..' . '/src/Install/ConfigurationInstaller.php',
+        'Vx\\Sendifico\\Install\\Installer' => __DIR__ . '/../..' . '/src/Install/Installer.php',
     );
 
     public static function getInitializer(ClassLoader $loader)

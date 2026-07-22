@@ -1,7 +1,7 @@
 vx_sendifico_configuration:
     path: /vx-sendifico/configuration
-    methods: [GET]
+    methods: [GET, POST]
     defaults:
-        _controller: 'Vx\Sendifico\Controller\Admin\ConfigurationController::indexAction'
+        _controller: 'Vx\Sendifico\Controller\Admin\ConfigurationController::index'
         _legacy_controller: AdminVxSendificoConfiguration
         _legacy_link: AdminVxSendificoConfiguration

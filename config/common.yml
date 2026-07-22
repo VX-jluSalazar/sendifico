@@ -1,2 +1,3 @@
 # Shared services loaded by admin and front kernels.
-services: {}
+imports:
+    - { resource: "components/repository/*.yml" }

@@ -43,6 +43,8 @@ vendor/autoload.php
   - `config/common.yml`
   - `config/admin/services.yml`
   - `config/front/services.yml`
+- `config/common.yml` queda limitado a servicios compartidos y ya no carga controladores ni formularios del Back Office.
+- El wiring admin se separa por componentes en `config/components/form/*.yml` y `config/components/controller/*.yml`.
 - Pantalla BO minima creada como placeholder; la configuracion completa queda para fase 04.
 - No se crean tablas en esta fase; el modelo se cierra en fase 06.
 
@@ -65,9 +67,8 @@ vendor/autoload.php
 - `php -l` sobre archivos PHP principales: OK.
 - `composer validate --strict`: OK.
 - Autoload PSR-4 para `Vx\Sendifico\Install\Installer`: OK.
-- `php bin/console pr:mo install vx_sendifico`: exit code 0 en la instalacion local.
+- `ddev exec sh -lc 'cd /var/www/html && php bin/console pr:mo install vx_sendifico'`: OK el 22-07-2026 (`Install action on module vx_sendifico succeeded.`).
 
 ## Validacion pendiente
 
 - `vendor/websenso/prestashop-module-devtools/bin/lotr` no pudo ejecutarse porque `prestashop-module-devtools` no esta instalado en `vendor/`.
-- La instalacion local de PrestaShop no tiene `app/config/parameters.yml`; la consola devuelve codigo 0 pero no imprime mensaje de exito limpio, y la salida normal esta contaminada por deprecations de dependencias bajo PHP 8.2.

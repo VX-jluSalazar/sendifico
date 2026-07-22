@@ -1,4 +1,5 @@
 # Admin kernel services for vx_sendifico.
 imports:
     - { resource: ../common.yml }
+    - { resource: ../components/form/*.yml }
     - { resource: ../components/controller/*.yml }

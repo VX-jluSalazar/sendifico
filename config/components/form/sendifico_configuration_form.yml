@@ -1,0 +1,25 @@
+# Admin-only configuration form services.
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        public: false
+
+    Vx\Sendifico\Configuration\SendificoDataConfiguration:
+        arguments:
+            - '@prestashop.adapter.legacy.configuration'
+            - '@prestashop.adapter.shop.context'
+            - '@prestashop.adapter.multistore_feature'
+
+    Vx\Sendifico\Configuration\SendificoFormDataProvider:
+        arguments:
+            - '@Vx\Sendifico\Configuration\SendificoDataConfiguration'
+            - '@prestashop.adapter.shop.context'
+
+    Vx\Sendifico\Form\Admin\Type\SendificoConfigurationType:
+        parent: 'form.type.translatable.aware'
+        autowire: false
+        autoconfigure: false
+        public: false
+        tags:
+            - { name: form.type }

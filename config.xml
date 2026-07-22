@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<module>
+    <name>vx_sendifico</name>
+    <displayName><![CDATA[Velox Sendifico]]></displayName>
+    <version><![CDATA[0.1.0]]></version>
+    <description><![CDATA[Connects PrestaShop checkout and order operations with Sendifico shipping.]]></description>
+    <author><![CDATA[Velox]]></author>
+    <tab><![CDATA[shipping_logistics]]></tab>
+    <is_configurable>1</is_configurable>
+    <need_instance>0</need_instance>
+</module>

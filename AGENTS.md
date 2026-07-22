@@ -320,3 +320,57 @@ Never commit API keys, wallet credentials, or production customer data. Keep Sen
   12. Seguridad, permisos, logs y manejo de errores
   13. Instalación, actualizaciones, desinstalación y compatibilidad multitienda
   14. Estrategia de pruebas, validación y despliegue
+
+## Uso obligatorio de DDEV para comandos de consola
+
+Este proyecto utiliza DDEV como entorno local de desarrollo.
+
+Antes de ejecutar cualquier comando relacionado con PHP, Composer, PrestaShop, Symfony, base de datos, Node.js o servicios del proyecto, verifica que DDEV esté iniciado.
+
+```bash
+ddev start
+```
+
+Si el proyecto ya está activo, no es necesario reiniciarlo.
+
+Todos los comandos que necesiten ejecutarse dentro del entorno del proyecto deben utilizar DDEV. No ejecutes directamente en el sistema anfitrión comandos como `php`, `composer`, `mysql`, `npm` o comandos de consola de PrestaShop.
+
+Ejemplos correctos:
+
+```bash
+ddev exec php -v
+ddev exec php bin/console cache:clear
+ddev exec php bin/console prestashop:module install nombre_modulo
+ddev composer install
+ddev composer update
+ddev npm install
+ddev npm run build
+ddev mysql
+```
+
+Para comandos generales dentro del contenedor web:
+
+```bash
+ddev exec <comando>
+```
+
+Antes de ejecutar comandos, sigue este flujo:
+
+1. Confirma que estás en la carpeta raíz del proyecto DDEV.
+2. Ejecuta `ddev start`.
+3. Revisa el estado con `ddev describe` cuando sea necesario.
+4. Ejecuta los comandos mediante `ddev exec` o mediante los comandos específicos de DDEV.
+5. No ejecutes servicios duplicados directamente en el sistema anfitrión.
+
+Los comandos que administran el propio proyecto desde fuera del contenedor, como `ddev start`, `ddev stop`, `ddev restart`, `ddev describe` y `ddev logs`, sí deben ejecutarse directamente.
+
+Git también puede ejecutarse directamente desde el sistema anfitrión:
+
+```bash
+git status
+git diff
+git add .
+git commit
+```
+
+Cuando exista duda sobre si un comando debe ejecutarse dentro del contenedor, utiliza `ddev exec`.

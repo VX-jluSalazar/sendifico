@@ -7,4 +7,11 @@ $baseDir = dirname($vendorDir);
 
 return array(
     'Composer\\InstalledVersions' => $vendorDir . '/composer/InstalledVersions.php',
+    'Vx\\Sendifico\\Configuration\\ConfigurationKeys' => $baseDir . '/src/Configuration/ConfigurationKeys.php',
+    'Vx\\Sendifico\\Configuration\\SendificoDataConfiguration' => $baseDir . '/src/Configuration/SendificoDataConfiguration.php',
+    'Vx\\Sendifico\\Configuration\\SendificoFormDataProvider' => $baseDir . '/src/Configuration/SendificoFormDataProvider.php',
+    'Vx\\Sendifico\\Controller\\Admin\\ConfigurationController' => $baseDir . '/src/Controller/Admin/ConfigurationController.php',
+    'Vx\\Sendifico\\Form\\Admin\\Type\\SendificoConfigurationType' => $baseDir . '/src/Form/Admin/Type/SendificoConfigurationType.php',
+    'Vx\\Sendifico\\Install\\ConfigurationInstaller' => $baseDir . '/src/Install/ConfigurationInstaller.php',
+    'Vx\\Sendifico\\Install\\Installer' => $baseDir . '/src/Install/Installer.php',
 );
