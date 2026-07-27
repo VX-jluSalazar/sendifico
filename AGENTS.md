@@ -1,376 +1,145 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-This repository currently contains planning and API reference material for a PrestaShop module integration with Sendifico. The committed files are under `.agents/`:
+`vx_sendifico` is a PrestaShop 8.2.1 module for integrating checkout and order operations with Sendifico.
 
-- `.agents/00-discovery.md`: integration notes and shipping flow decisions.
-- `.agents/SOT_Sendifico_API.yml`: source-of-truth OpenAPI contract for Sendifico.
+- `vx_sendifico.php`: module entrypoint and bootstrap.
+- `composer.json`: PSR-4 autoload for `Vx\Sendifico\`.
+- `src/`: module code grouped by bounded area such as `Configuration/`, `Install/`, `Controller/`, `Checkout/`, `Carrier/`, `Order/`, `Package/`, `Repository/`, `Sendifico/`, and `Sync/`.
+- `config/`: service wiring and routes split into `common.yml`, `admin/services.yml`, `front/services.yml`, and `components/`.
+- `views/`: Twig templates and UI assets.
+- `tests/`: unit or integration tests for mapping, persistence, and operational flows.
+- `upgrade/`: upgrade scripts for future versions.
+- `.agents/`: delivery plan, phase-by-phase execution notes, API contract, and supporting documentation.
 
-When implementation starts, keep PrestaShop module entrypoints at the repository root, place business logic in clearly named classes, and group admin or front-office assets under dedicated folders such as `views/`, `controllers/`, and `src/`.
+Treat `.agents/SOT_Sendifico_API.yml` as the source of truth for Sendifico fields, enums, headers, and endpoint behavior.
+
+## Current Status
+The module is no longer a planning-only repository. There is already a baseline implementation for phase 03:
+
+- installable module skeleton,
+- Composer autoload and namespace,
+- installer and configuration bootstrap,
+- admin route and configuration controller wiring,
+- initial configuration keys.
+
+Before changing architecture, validate whether the intended work belongs to a later phase under `.agents/fases/`.
+
+## Phases
+Execution is organized in `.agents/fases/` and should be followed in order unless a bugfix explicitly targets existing code.
+
+1. `fase-01-preparacion-y-diagnostico.md`
+2. `fase-02-diseno-funcional-y-arquitectura.md`
+3. `fase-03-estructura-base-del-modulo.md`
+4. `fase-04-configuracion-back-office-y-parametros-por-tienda.md`
+5. `fase-05-sincronizacion-y-cache-de-territorios-y-remitentes.md`
+6. `fase-06-modelo-de-datos-y-persistencia-de-trazabilidad.md`
+7. `fase-07-estrategia-de-carriers-persistentes-mapeados-a-sendifico.md`
+8. `fase-08-integracion-con-checkout-clasico-y-cotizacion.md`
+9. `fase-09-resolucion-de-paquete-contents-y-validaciones-previas.md`
+10. `fase-10-creacion-de-shipment-y-purchase-al-confirmar-pago.md`
+11. `fase-11-operacion-back-office-reintentos-tracking-y-label.md`
+12. `fase-12-seguridad-permisos-logs-y-manejo-de-errores.md`
+13. `fase-13-instalacion-actualizaciones-desinstalacion-y-compatibilidad-multitienda.md`
+14. `fase-14-estrategia-de-pruebas-validacion-y-despliegue.md`
+
+## Deliverables
+Use `.agents/entregables/` as the concrete output register for each phase.
+
+- `fase-01/`: decisiones base, inventario de integraciones, matriz de riesgos, pendientes priorizados.
+- `fase-02/`: arquitectura lógica, mapa de servicios, flujos, errores e idempotencia.
+- `fase-03/`: resumen de implementación del esqueleto instalable.
+
+If a new phase produces artifacts, add them under `.agents/entregables/fase-XX/` and reference them from the corresponding phase document.
+
+## Skills
+The implementation baseline explicitly relies on the local skill:
+
+- `.agents/skills/prestashop-module-development/SKILL.md`
+
+Use this skill as the primary development convention for:
+
+- modern module structure,
+- installer delegation,
+- Symfony configuration pages,
+- services and DI,
+- security, hooks, translations, and validation.
+
+When a change conflicts with the skill, document the reason in the relevant phase or deliverable before implementing it.
 
 ## Build, Test, and Development Commands
-There is no build pipeline in the repository yet. Use these commands for current work:
+Run commands from `modules/vx_sendifico`.
 
 - `git status`: inspect local changes before editing.
-- `git log --oneline`: review recent history and naming patterns.
-- `rg --files .agents`: list reference files quickly.
-- `sed -n '1,120p' .agents/SOT_Sendifico_API.yml`: inspect the API contract in chunks.
+- `composer validate --strict`: validate package metadata.
+- `composer dump-autoload`: refresh PSR-4 autoloading.
+- `php -l vx_sendifico.php`: lint the main module entrypoint.
+- `find src -name '*.php' -print0 | xargs -0 -n1 php -l`: lint PHP source files.
+- `rg --files .agents`: inspect planning, phases, and deliverables quickly.
+- `sed -n '1,160p' .agents/SOT_Sendifico_API.yml`: review the API contract in chunks.
 
-If you add tooling later, document the exact local commands here and keep them runnable from the repository root.
+If the local PrestaShop runtime is available, validate installation with the project-standard module install flow already recorded in `.agents/entregables/fase-03/resumen-implementacion.md`.
+
+## Uso obligatorio de DDEV para comandos de consola
+When a command depends on the real PrestaShop application context, database, modules, Symfony container, or `bin/console`, run it through DDEV and not directly from the host shell.
+
+This is the root path: `~/Sites/prestashop/`.
+
+- Use `ddev exec` for PrestaShop console commands, module install or uninstall flows, cache operations, and runtime validations.
+- Prefer running from the project root mounted in the container, for example `ddev exec sh -lc 'cd /var/www/html && php bin/console pr:mo install vx_sendifico'`.
+- Do not assume the host PHP binary reflects the same extensions, paths, or runtime configuration as the containerized application.
+- Host-side commands are acceptable only for repo-local static tasks such as `rg`, `git status`, `sed`, `composer validate`, or `php -l` when they do not require the live shop context.
+- If a validation result depends on database state, shop configuration, multistore context, or installed modules, treat DDEV as mandatory.
 
 ## Coding Style & Naming Conventions
 Follow PrestaShop and modern PHP conventions:
 
 - Use 4-space indentation and UTF-8 text files.
-- Prefer `StudlyCase` for classes, `camelCase` for methods and variables, and `snake_case` only where PrestaShop configuration keys or database fields require it.
-- Keep files focused: one class per file, explicit names such as `SendificoShipmentService.php`.
-- Treat `.agents/SOT_Sendifico_API.yml` as authoritative for request fields, enum values, and endpoint behavior.
+- Use `StudlyCase` for classes and `camelCase` for methods and properties.
+- Use `snake_case` only where PrestaShop configuration keys, database fields, or legacy integration points require it.
+- Keep one responsibility per class and prefer explicit names such as `SendificoShipmentService`, `TerritorySyncService`, or `CarrierQuoteMapper`.
+- Keep business logic out of `vx_sendifico.php`; delegate installation, configuration, API, repository, and BO actions to `src/`.
+- Avoid overrides unless a documented phase decision explicitly justifies them.
 
 ## Testing Guidelines
-No automated tests are present yet. When adding code, introduce tests alongside the first executable features:
+Automated coverage is still incomplete, so every new executable feature should expand validation.
 
-- Put unit tests in `tests/` and mirror source names, for example `tests/SendificoShipmentServiceTest.php`.
-- Cover payload mapping, status transitions, and error handling for Sendifico API calls.
-- Record any required fixtures or sample payloads near the tests, not in ad hoc notes.
+- Add tests under `tests/` mirroring the production namespace or feature area.
+- Prioritize coverage for payload mapping, quotation filtering, shipment creation, purchase retries, and error handling.
+- Add fixtures or sample payloads near the tests when Sendifico request or response shapes matter.
+- Record any manual validation needed for checkout, BO actions, or multistore behavior in the related deliverable.
 
 ## Commit & Pull Request Guidelines
-Current history uses short commit subjects (`first commit`, `update`). Improve this with imperative, specific messages such as `Add shipment payload mapper`.
+Use short, imperative, specific commits such as:
+
+- `Add territory sync service skeleton`
+- `Persist selected Sendifico rate on order confirmation`
+- `Wire BO action for label generation`
 
 Pull requests should include:
 
-- A short summary of the user-visible or integration impact.
-- Notes on API endpoints or order states affected.
-- Test evidence or a clear statement that tests are still pending.
-- Screenshots only when admin or checkout UI changes are introduced.
+- summary of functional or operational impact,
+- affected phase or deliverable,
+- impacted Sendifico endpoints or order states,
+- test evidence or explicit pending validation,
+- screenshots only when BO or checkout UI changed.
 
 ## Security & Configuration Tips
-Never commit API keys, wallet credentials, or production customer data. Keep Sendifico secrets in environment-specific configuration, and verify country/version headers against `.agents/SOT_Sendifico_API.yml` before releasing.
-
-# Resumen técnico del módulo
-
-  ## Información confirmada
-
-  ### Objetivo del módulo
-
-  Desarrollar un módulo nuevo de PrestaShop 8.2.1 para integrar la tienda con Sendifico mediante su API, con foco en:
-
-  - cotización de envíos en checkout,
-  - obtención y uso de territorios de entrega de Sendifico,
-  - selección de couriers disponibles,
-  - creación y gestión operativa del shipment después del pedido,
-  - compra del envío, generación de tracking y generación de label desde Back Office.
-
-  ### Alcance funcional
-
-  El módulo debe:
-
-  - mostrar en checkout clásico las opciones de transporte disponibles según cotización Sendifico,
-  - cobrar al cliente exactamente la tarifa devuelta por Sendifico,
-  - trabajar sobre PrestaShop 8.2.1 con PHP > 8,
-  - soportar multitienda desde el diseño,
-  - usar una dirección remitente de Sendifico configurada por tienda,
-  - resolver el territorio de entrega mediante selección explícita en checkout,
-  - permitir reintento de purchase desde BO si falla la compra del envío,
-  - permitir generateTrackingNumber manual desde BO,
-  - permitir generateLabelUrl bajo demanda desde BO,
-  - registrar trazabilidad técnica y operativa en tablas propias y logs.
-
-  ### Alcance técnico
-
-  Arquitectura prevista para el módulo:
-
-  - módulo nuevo con identidad técnica vx_sendifico,
-  - author Velox,
-  - namespace base vendorizado Vx\Sendifico,
-  - integración principal con checkout clásico de PrestaShop,
-  - configuración moderna en BO,
-  - servicios desacoplados para:
-      - cliente API Sendifico,
-      - cotización,
-      - sincronización/cache de territorios,
-      - sincronización de remitentes,
-      - resolución de paquete,
-      - resolución de categoría contents,
-      - persistencia y trazabilidad,
-      - acciones operativas BO,
-
-  - carriers persistentes en PrestaShop mapeados a carrierToken,
-  - cada carrier solo se muestra si aparece en la cotización actual de Sendifico,
-  - creación real de shipment solo después de que el pedido exista,
-  - purchase automático al entrar el pedido en estado pagado/aceptado,
-  - tracking y label operados manualmente desde BO.
-
-  ### Flujo principal
-
-  Flujo acordado para v1:
-
-  1. El cliente completa o selecciona dirección en checkout.
-  2. El checkout usa territorios Sendifico sincronizados/cacheados para resolver el destino.
-  3. El módulo cotiza con Sendifico usando POST /quotation.
-  4. Se muestran solo los carriers persistentes cuyo carrierToken esté presente y disponible en la respuesta.
-  5. El cliente selecciona uno de esos transportistas y completa el pedido.
-  6. Cuando el pedido pasa a pagado/aceptado:
-      - se crea POST /shipment,
-      - se usa la dirección remitente configurada,
-      - se resuelve contents,
-      - se calcula el paquete,
-      - se intenta PATCH /shipment/purchase/{id} con la tarifa elegida.
-
-  7. Si purchase falla, el pedido puede quedar marcado con el estado informativo Courier no pagado.
-  8. Desde BO se podrá:
-      - reintentar purchase,
-      - ejecutar generateTrackingNumber,
-      - ejecutar generateLabelUrl,
-      - revisar el detalle y trazabilidad del envío.
-
-  ### Actores y sistemas involucrados
-
-  Actores:
-
-  - cliente en checkout,
-  - empleado BO con permisos del módulo,
-  - operador logístico interno,
-  - Sendifico API.
-
-  Sistemas:
-
-  - PrestaShop 8.2.1,
-  - checkout clásico,
-  - módulo vx_sendifico,
-  - API Sendifico,
-  - carriers persistentes internos de PrestaShop.
-
-  ### Hooks y eventos relevantes
-
-  Confirmados a nivel funcional, pendientes de aterrizar al hook exacto:
-
-  - evento del checkout al cambiar/confirmar dirección,
-  - recálculo de transportistas disponibles,
-  - paso del pedido a estado pagado/aceptado,
-  - acciones en ficha de pedido BO,
-  - acciones en listado propio del módulo BO.
-
-  ### Componentes que deberán crearse o modificarse
-
-  Previstos:
-
-  - clase principal del módulo,
-  - instalador/desinstalador,
-  - configuración BO,
-  - servicios DI,
-  - cliente API Sendifico,
-  - sincronizador de territorios,
-  - sincronizador de direcciones remitentes,
-  - estrategia de mapeo carrierToken -> carrier PrestaShop,
-  - estrategia de mapeo producto/categoría -> contents,
-  - cálculo de paquete,
-  - persistencia local de shipments,
-  - acciones BO sobre pedido,
-  - listado BO propio del módulo,
-  - estados de pedido necesarios,
-  - tablas propias del módulo,
-  - scripts de instalación y actualización.
-
-  ### Datos que se almacenarán
-
-  Se confirmó que habrá tabla propia completa. Como mínimo deberá persistirse:
-
-  - relación pedido <-> shipment Sendifico,
-  - shipmentId,
-  - extId,
-  - carrierToken y/o rateId seleccionado,
-  - importes relevantes,
-  - estado interno/local,
-  - timestamps de cotización, creación, purchase, tracking y label,
-  - errores operativos resumidos,
-  - datos de trazabilidad necesarios para reintentos.
-
-  ### Integraciones externas
-
-  Confirmado:
-
-  - la integración externa principal es Sendifico,
-  - la fuente contractual es .agents/SOT_Sendifico_API.yml:1,
-  - mercado objetivo inicial: Ecuador EC,
-  - moneda operativa inicial: USD,
-  - autenticación por API key y headers obligatorios de versión/país.
-
-  ### Restricciones
-
-  Confirmadas:
-
-  - no comenzar con overrides salvo justificación sólida,
-  - no almacenar credenciales en código,
-  - multitienda considerada desde el diseño,
-  - contents admite exactamente una categoría Sendifico por shipment,
-  - se permite cotización aunque falten datos críticos,
-  - no se permite crear shipment si faltan datos requeridos,
-  - el error posterior al pago debe gestionarse internamente desde BO, sin impacto directo al cliente.
-
-  ### Riesgos
-
-  Identificados:
-
-  - integración delicada con checkout clásico para recalcular y mostrar carriers filtrados dinámicamente,
-  - necesidad de mantener consistente el mapeo entre carriers persistentes y carrierToken,
-  - posible diferencia entre cotización en checkout y condiciones reales al crear/pagar shipment,
-  - dependencia de datos de producto incompletos para dimensiones y contents,
-  - necesidad de diseño cuidadoso para multitienda y cache de territorios,
-  - riesgo operativo si falla purchase por saldo insuficiente u otra causa API.
-
-  ### Decisiones técnicas acordadas
-
-  Acordado hasta ahora:
-
-  - usar la skill prestashop-module-development como base de convenciones,
-  - vx_sendifico será un módulo nuevo,
-  - integración enfocada en checkout clásico,
-  - usar carriers persistentes mapeados,
-  - mostrar solo carriers presentes en la respuesta de cotización,
-  - usar quotation en checkout y crear shipment solo después del pedido,
-  - ejecutar purchase al entrar en estado pagado/aceptado,
-  - permitir reintento manual de purchase en BO,
-  - ejecutar tracking manualmente en BO,
-  - generar label solo bajo demanda en BO,
-  - sincronizar/cachear territorios localmente,
-  - configurar remitente desde direcciones sender de Sendifico,
-  - detectar COD por método de pago configurable,
-  - mantener logs técnicos con payload resumido,
-  - usar tabla propia completa,
-  - política de desinstalación destructiva: borrar todo al desinstalar.
-
-  ### Aspectos fuera de alcance
-
-  Fuera de alcance para v1, salvo que lo corrijas:
-
-  - checkout no clásico o altamente custom,
-  - algoritmo avanzado de packing 3D,
-  - descarga/almacenamiento local automático de PDFs de etiquetas,
-  - automatización por cron de tracking,
-
-  ———
-
-  ## Suposiciones
-
-  Estas no están totalmente cerradas, pero son las que tomaría si el resumen se aprueba:
-
-  - el namespace concreto final será Vx\Sendifico,
-  - el estado Courier no pagado será el único estado adicional del módulo,
-  - Creative Elements no altera el checkout nativo de forma que obligue a una integración distinta,
-  - el módulo podrá crear y administrar sus propios carriers persistentes sin conflicto con la configuración actual de la tienda.
-
-  ———
-
-  ## Decisiones cerradas y pendientes
-
-  Cerrado:
-
-  1. Versión exacta de PHP objetivo: 8.2.30.
-
-  2. Nombre técnico del módulo: vx_sendifico.
-
-  3. Author: Velox.
-
-  4. Namespace base: Vx\Sendifico.
-
-  5. Checkout objetivo: checkout default/clásico de PrestaShop confirmado.
-
-  6. Desinstalación: borrar todo al desinstalar.
-
-  7. Purchase: usar purchaseWith walletAvailable.
-
-  8. Estado adicional: solo Courier no pagado.
-
-  9. Contents dominante: categoría que más se repite; en empate domina la de mayor peso acumulado.
-
-  10. Defaults operativos: deben configurarse desde BO, incluyendo país, moneda, medidas y demás valores por defecto.
-
-  11. Territorio checkout: selectores separados provincia -> cantón -> ciudad, con filtros encadenados.
-
-  Pendiente de refinamiento técnico:
-
-  1. La regla exacta de cálculo heurístico de dimensiones del paquete cuando falten datos de producto.
-     Está orientada a defaults configurables desde BO, pero falta definir los campos y valores iniciales.
-
-  2. Los hooks y puntos técnicos exactos del checkout clásico que se usarán para:
-      - capturar territorio,
-      - cotizar,
-      - recalcular transportistas,
-      - persistir selección del carrier/rate.
-
-  3. El detalle del modelo de datos local.
-     Está confirmado que habrá tabla propia completa, pero no el esquema exacto.
-
-  4. La política precisa de fallback para lat/lng.
-     Confirmado “opcional con fallback”, pero no el fallback exacto.
-
-    Indice general propuesto del plan técnico:
-
-  1. Preparación y diagnóstico
-  2. Diseño funcional y arquitectura del módulo
-  3. Estructura base del módulo vx_sendifico
-  4. Configuración Back Office y parámetros por tienda
-  5. Sincronización y caché de territorios y remitentes
-  6. Modelo de datos y persistencia de trazabilidad
-  7. Estrategia de carriers persistentes mapeados a Sendifico
-  8. Integración con checkout clásico y cotización
-  9. Resolución de paquete, contents y validaciones previas
-  10. Creación de shipment y purchase al confirmar pago
-  11. Operación Back Office: reintentos, tracking y label
-  12. Seguridad, permisos, logs y manejo de errores
-  13. Instalación, actualizaciones, desinstalación y compatibilidad multitienda
-  14. Estrategia de pruebas, validación y despliegue
-
-## Uso obligatorio de DDEV para comandos de consola
-
-Este proyecto utiliza DDEV como entorno local de desarrollo.
-
-Antes de ejecutar cualquier comando relacionado con PHP, Composer, PrestaShop, Symfony, base de datos, Node.js o servicios del proyecto, verifica que DDEV esté iniciado.
-
-```bash
-ddev start
-```
-
-Si el proyecto ya está activo, no es necesario reiniciarlo.
-
-Todos los comandos que necesiten ejecutarse dentro del entorno del proyecto deben utilizar DDEV. No ejecutes directamente en el sistema anfitrión comandos como `php`, `composer`, `mysql`, `npm` o comandos de consola de PrestaShop.
-
-Ejemplos correctos:
-
-```bash
-ddev exec php -v
-ddev exec php bin/console cache:clear
-ddev exec php bin/console prestashop:module install nombre_modulo
-ddev composer install
-ddev composer update
-ddev npm install
-ddev npm run build
-ddev mysql
-```
-
-Para comandos generales dentro del contenedor web:
-
-```bash
-ddev exec <comando>
-```
-
-Antes de ejecutar comandos, sigue este flujo:
-
-1. Confirma que estás en la carpeta raíz del proyecto DDEV.
-2. Ejecuta `ddev start`.
-3. Revisa el estado con `ddev describe` cuando sea necesario.
-4. Ejecuta los comandos mediante `ddev exec` o mediante los comandos específicos de DDEV.
-5. No ejecutes servicios duplicados directamente en el sistema anfitrión.
-
-Los comandos que administran el propio proyecto desde fuera del contenedor, como `ddev start`, `ddev stop`, `ddev restart`, `ddev describe` y `ddev logs`, sí deben ejecutarse directamente.
-
-Git también puede ejecutarse directamente desde el sistema anfitrión:
-
-```bash
-git status
-git diff
-git add .
-git commit
-```
-
-Cuando exista duda sobre si un comando debe ejecutarse dentro del contenedor, utiliza `ddev exec`.
+Never commit API keys, wallet credentials, sender secrets, or production customer data.
+
+- Keep Sendifico credentials in configuration per shop context.
+- Respect mandatory headers and country/version constraints from `.agents/SOT_Sendifico_API.yml`.
+- Log operational traces with enough detail for retries, but avoid leaking sensitive payload data.
+- Design all new configuration, cache, and persistence layers with multistore in mind.
+- Do not create shipments when required checkout or package data is missing; fail internally with traceability.
+
+## Functional Summary
+The agreed v1 behavior of the module is:
+
+- quote shipping options in classic checkout using Sendifico,
+- expose only mapped persistent carriers returned by the current quotation,
+- create the shipment only after the order exists,
+- attempt purchase when the order becomes paid or accepted,
+- support BO retries for purchase,
+- support manual BO tracking generation and label generation,
+- persist technical and operational traceability in module-owned storage.
