@@ -1,0 +1,75 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Editores
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.code-workspace
+
+# Temporales
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+*.bak
+*.backup
+*.old
+*.orig
+
+# Logs
+*.log
+logs/
+log/
+
+# Configuración local y secretos
+.env
+.env.*
+!.env.example
+*.local.php
+config.local.php
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Dependencias
+/vendor/
+/node_modules/
+composer.phar
+
+# Builds y pruebas
+/dist/
+/build/
+coverage/
+.phpunit.result.cache
+.phpunit.cache/
+.php-cs-fixer.cache
+.phpstan.cache/
+.phpstan/
+
+# Archivos generados por el módulo
+/config.xml
+/uploads/
+/cache/
+/var/cache/
+/var/logs/
+
+# Respaldos y exportaciones
+*.sql
+*.sql.gz
+*.zip
+*.tar
+*.tar.gz
+
+# DDEV
+.ddev/.dbimageBuild/
+.ddev/.webimageBuild/
+.ddev/.downloads/
