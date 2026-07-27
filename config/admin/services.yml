@@ -2,4 +2,7 @@
 imports:
     - { resource: ../common.yml }
     - { resource: ../components/form/*.yml }
+    - { resource: ../components/carrier/*.yml }
+    - { resource: ../components/sync/*.yml }
+    - { resource: ../components/command/*.yml }
     - { resource: ../components/controller/*.yml }

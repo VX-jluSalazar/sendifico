@@ -5,3 +5,20 @@ vx_sendifico_configuration:
         _controller: 'Vx\Sendifico\Controller\Admin\ConfigurationController::index'
         _legacy_controller: AdminVxSendificoConfiguration
         _legacy_link: AdminVxSendificoConfiguration
+
+vx_sendifico_sync:
+    path: /vx-sendifico/sync/{type}
+    methods: [POST]
+    defaults:
+        _controller: 'Vx\Sendifico\Controller\Admin\ConfigurationController::sync'
+        _legacy_controller: AdminVxSendificoConfiguration
+        _legacy_link: AdminVxSendificoConfiguration
+        type: all
+
+vx_sendifico_carriers_provision:
+    path: /vx-sendifico/carriers/provision
+    methods: [POST]
+    defaults:
+        _controller: 'Vx\Sendifico\Controller\Admin\ConfigurationController::provisionCarriers'
+        _legacy_controller: AdminVxSendificoConfiguration
+        _legacy_link: AdminVxSendificoConfiguration

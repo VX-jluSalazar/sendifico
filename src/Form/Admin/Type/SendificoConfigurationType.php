@@ -54,7 +54,10 @@ class SendificoConfigurationType extends TranslatorAwareType
                 'multistore_configuration_key' => 'VX_SENDIFICO_COUNTRY',
                 'label' => $this->trans('Country', 'Modules.Vxsendifico.Admin'),
                 'help' => $this->trans('Codigo ISO de 2 letras usado para Sendifico. Para v1 se espera EC.', 'Modules.Vxsendifico.Admin'),
-                'attr' => ['maxlength' => 2],
+                'attr' => [
+                    'maxlength' => 2,
+                    'style' => 'text-transform: uppercase;',
+                ],
                 'constraints' => [
                     new Regex([
                         'pattern' => '/^[A-Z]{2}$/',
@@ -67,7 +70,10 @@ class SendificoConfigurationType extends TranslatorAwareType
                 'multistore_configuration_key' => 'VX_SENDIFICO_CURRENCY',
                 'label' => $this->trans('Currency', 'Modules.Vxsendifico.Admin'),
                 'help' => $this->trans('Codigo ISO de 3 letras para cotizaciones y persistencia. Para v1 se espera USD.', 'Modules.Vxsendifico.Admin'),
-                'attr' => ['maxlength' => 3],
+                'attr' => [
+                    'maxlength' => 3,
+                    'style' => 'text-transform: uppercase;',
+                ],
                 'constraints' => [
                     new Regex([
                         'pattern' => '/^[A-Z]{3}$/',
@@ -75,14 +81,17 @@ class SendificoConfigurationType extends TranslatorAwareType
                     ]),
                 ],
             ])
-            ->add('sender_reference', TextType::class, [
+            ->add('sender_reference', ChoiceType::class, [
                 'required' => false,
                 'multistore_configuration_key' => 'VX_SENDIFICO_SENDER_REFERENCE',
                 'label' => $this->trans('Sender reference', 'Modules.Vxsendifico.Admin'),
-                'help' => $this->trans('Identificador o referencia exacta del sender de Sendifico asociado a esta tienda.', 'Modules.Vxsendifico.Admin'),
+                'help' => $this->trans('Seleccione un remitente del cache local sincronizado para este contexto de tienda.', 'Modules.Vxsendifico.Admin'),
+                'choices' => $options['sender_choices'],
+                'placeholder' => $this->trans('Select a sender', 'Modules.Vxsendifico.Admin'),
+                'disabled' => $options['sender_choices'] === [],
                 'constraints' => [
-                    new Length([
-                        'max' => 255,
+                    new Choice([
+                        'choices' => array_values($options['sender_choices']),
                     ]),
                 ],
             ])
@@ -170,8 +179,11 @@ class SendificoConfigurationType extends TranslatorAwareType
     public function configureOptions(OptionsResolver $resolver): void
     {
         $resolver->setDefaults([
+            'form_theme' => '@PrestaShop/Admin/TwigTemplateForm/prestashop_ui_kit.html.twig',
             'translation_domain' => 'Modules.Vxsendifico.Admin',
+            'sender_choices' => [],
         ]);
+        $resolver->setAllowedTypes('sender_choices', 'array');
     }
 
     public function getBlockPrefix(): string

@@ -37,10 +37,10 @@ class SendificoDataConfiguration extends AbstractMultistoreConfiguration
             'cod_payment_methods' => (string) $this->configuration->get(ConfigurationKeys::COD_PAYMENT_METHODS, '', $shopConstraint),
             'sender_reference' => (string) $this->configuration->get(ConfigurationKeys::SENDER_REFERENCE, '', $shopConstraint),
             'purchase_with' => (string) $this->configuration->get(ConfigurationKeys::PURCHASE_WITH, ConfigurationKeys::DEFAULTS[ConfigurationKeys::PURCHASE_WITH], $shopConstraint),
-            'auto_purchase_enabled' => (bool) $this->configuration->get(ConfigurationKeys::AUTO_PURCHASE_ENABLED, true, $shopConstraint),
-            'allow_incomplete_checkout_address' => (bool) $this->configuration->get(ConfigurationKeys::ALLOW_INCOMPLETE_CHECKOUT_ADDRESS, true, $shopConstraint),
-            'enable_debug_logs' => (bool) $this->configuration->get(ConfigurationKeys::ENABLE_DEBUG_LOGS, false, $shopConstraint),
-            'log_retention_days' => (int) $this->configuration->get(ConfigurationKeys::LOG_RETENTION_DAYS, 30, $shopConstraint),
+            'auto_purchase_enabled' => (bool) $this->configuration->get(ConfigurationKeys::AUTO_PURCHASE_ENABLED, ConfigurationKeys::DEFAULTS[ConfigurationKeys::AUTO_PURCHASE_ENABLED], $shopConstraint),
+            'allow_incomplete_checkout_address' => (bool) $this->configuration->get(ConfigurationKeys::ALLOW_INCOMPLETE_CHECKOUT_ADDRESS, ConfigurationKeys::DEFAULTS[ConfigurationKeys::ALLOW_INCOMPLETE_CHECKOUT_ADDRESS], $shopConstraint),
+            'enable_debug_logs' => (bool) $this->configuration->get(ConfigurationKeys::ENABLE_DEBUG_LOGS, ConfigurationKeys::DEFAULTS[ConfigurationKeys::ENABLE_DEBUG_LOGS], $shopConstraint),
+            'log_retention_days' => (int) $this->configuration->get(ConfigurationKeys::LOG_RETENTION_DAYS, ConfigurationKeys::DEFAULTS[ConfigurationKeys::LOG_RETENTION_DAYS], $shopConstraint),
             'default_weight' => (string) $this->configuration->get(ConfigurationKeys::DEFAULT_WEIGHT, ConfigurationKeys::DEFAULTS[ConfigurationKeys::DEFAULT_WEIGHT], $shopConstraint),
             'default_length' => (string) $this->configuration->get(ConfigurationKeys::DEFAULT_LENGTH, ConfigurationKeys::DEFAULTS[ConfigurationKeys::DEFAULT_LENGTH], $shopConstraint),
             'default_width' => (string) $this->configuration->get(ConfigurationKeys::DEFAULT_WIDTH, ConfigurationKeys::DEFAULTS[ConfigurationKeys::DEFAULT_WIDTH], $shopConstraint),
@@ -59,7 +59,7 @@ class SendificoDataConfiguration extends AbstractMultistoreConfiguration
             $normalizedConfiguration['api_version'] = trim((string) $normalizedConfiguration['api_version']);
             $normalizedConfiguration['api_key'] = trim((string) $normalizedConfiguration['api_key']);
             $normalizedConfiguration['sender_reference'] = trim((string) $normalizedConfiguration['sender_reference']);
-            $normalizedConfiguration['cod_payment_methods'] = $this->normalizeCodPaymentMethods((string) $normalizedConfiguration['cod_payment_methods']);
+            $normalizedConfiguration['cod_payment_methods'] = $this->normalizeCodPaymentMethods((string) ($normalizedConfiguration['cod_payment_methods'] ?? ''));
             $normalizedConfiguration['default_weight'] = $this->normalizeDecimal((string) $normalizedConfiguration['default_weight']);
             $normalizedConfiguration['default_length'] = $this->normalizeDecimal((string) $normalizedConfiguration['default_length']);
             $normalizedConfiguration['default_width'] = $this->normalizeDecimal((string) $normalizedConfiguration['default_width']);
@@ -93,8 +93,8 @@ class SendificoDataConfiguration extends AbstractMultistoreConfiguration
             ->setAllowedTypes('api_version', 'string')
             ->setAllowedTypes('country', 'string')
             ->setAllowedTypes('currency', 'string')
-            ->setAllowedTypes('cod_payment_methods', 'string')
-            ->setAllowedTypes('sender_reference', 'string')
+            ->setAllowedTypes('cod_payment_methods', ['null', 'string'])
+            ->setAllowedTypes('sender_reference', ['null', 'string'])
             ->setAllowedTypes('purchase_with', 'string')
             ->setAllowedTypes('auto_purchase_enabled', 'bool')
             ->setAllowedTypes('allow_incomplete_checkout_address', 'bool')

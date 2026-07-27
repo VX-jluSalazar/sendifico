@@ -1,0 +1,32 @@
+# Admin sync services.
+services:
+    Vx\Sendifico\Api\SendificoApiClient:
+        autowire: true
+        autoconfigure: true
+
+    Vx\Sendifico\Configuration\SendificoConnectionConfigurationProvider:
+        arguments:
+            - '@prestashop.adapter.legacy.configuration'
+
+    Vx\Sendifico\Sync\TerritorySyncService:
+        autowire: true
+        autoconfigure: true
+
+    Vx\Sendifico\Sync\SenderAddressSyncService:
+        autowire: true
+        autoconfigure: true
+
+    Vx\Sendifico\Sync\SendificoSyncOrchestrator:
+        arguments:
+            - '@prestashop.adapter.shop.context'
+            - '@Vx\Sendifico\Configuration\SendificoConnectionConfigurationProvider'
+            - '@Vx\Sendifico\Sync\TerritorySyncService'
+            - '@Vx\Sendifico\Sync\SenderAddressSyncService'
+
+    Vx\Sendifico\Sync\SendificoSyncStatusProvider:
+        arguments:
+            - '@prestashop.adapter.shop.context'
+            - '@Vx\Sendifico\Configuration\SendificoConnectionConfigurationProvider'
+            - '@Vx\Sendifico\Repository\TerritoryRepository'
+            - '@Vx\Sendifico\Repository\SenderAddressRepository'
+            - '@Vx\Sendifico\Repository\SyncMetadataRepository'

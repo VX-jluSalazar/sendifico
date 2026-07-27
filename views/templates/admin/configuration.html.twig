@@ -1,6 +1,115 @@
 {% extends '@PrestaShop/Admin/layout.html.twig' %}
+{% form_theme configurationForm '@PrestaShop/Admin/TwigTemplateForm/prestashop_ui_kit.html.twig' %}
 
 {% block content %}
+  <div class="alert alert-info" role="alert">
+    <p class="mb-1"><strong>{{ 'Current multistore context'|trans({}, 'Modules.Vxsendifico.Admin') }}:</strong> {{ shopContextLabel }}</p>
+    <p class="mb-0">{{ 'The values saved here apply only to the selected shop context unless the multistore toggle is shared.'|trans({}, 'Modules.Vxsendifico.Admin') }}</p>
+  </div>
+
+  <div class="card mb-3">
+    <h3 class="card-header">
+      <i class="material-icons">sync</i>
+      {{ 'Synchronization cache'|trans({}, 'Modules.Vxsendifico.Admin') }}
+    </h3>
+    <div class="card-body">
+      <p class="mb-3">{{ 'Use these actions to refresh the local cache of territories and sender addresses before checkout or operational flows depend on it.'|trans({}, 'Modules.Vxsendifico.Admin') }}</p>
+      <div class="d-flex flex-wrap gap-2 mb-4">
+        <form action="{{ path('vx_sendifico_sync', {'type': 'all'}) }}" method="post" class="mr-2 mb-2">
+          <input type="hidden" name="_token" value="{{ syncTokens.all }}">
+          <button type="submit" class="btn btn-primary">{{ 'Sync all'|trans({}, 'Modules.Vxsendifico.Admin') }}</button>
+        </form>
+        <form action="{{ path('vx_sendifico_sync', {'type': 'territories'}) }}" method="post" class="mr-2 mb-2">
+          <input type="hidden" name="_token" value="{{ syncTokens.territories }}">
+          <button type="submit" class="btn btn-outline-primary">{{ 'Sync territories'|trans({}, 'Modules.Vxsendifico.Admin') }}</button>
+        </form>
+        <form action="{{ path('vx_sendifico_sync', {'type': 'senders'}) }}" method="post" class="mb-2">
+          <input type="hidden" name="_token" value="{{ syncTokens.senders }}">
+          <button type="submit" class="btn btn-outline-primary">{{ 'Sync senders'|trans({}, 'Modules.Vxsendifico.Admin') }}</button>
+        </form>
+      </div>
+
+      <h4 class="mb-2">{{ 'Territories'|trans({}, 'Modules.Vxsendifico.Admin') }}</h4>
+      <ul class="mb-4">
+        {% for item in syncOverview.territories %}
+          <li>
+            <strong>{{ item.label }}</strong>:
+            {{ 'status'|trans({}, 'Modules.Vxsendifico.Admin') }} {{ item.status }},
+            {{ item.count }} {{ 'items'|trans({}, 'Modules.Vxsendifico.Admin') }}
+            {% if item.last_success_at %}
+              , {{ 'last success'|trans({}, 'Modules.Vxsendifico.Admin') }} {{ item.last_success_at }}
+            {% endif %}
+            {% if item.error_message %}
+              , {{ item.error_message }}
+            {% endif %}
+          </li>
+        {% else %}
+          <li>{{ 'No territory sync metadata is available yet.'|trans({}, 'Modules.Vxsendifico.Admin') }}</li>
+        {% endfor %}
+      </ul>
+
+      <h4 class="mb-2">{{ 'Senders'|trans({}, 'Modules.Vxsendifico.Admin') }}</h4>
+      <ul class="mb-0">
+        {% for item in syncOverview.senders %}
+          <li>
+            <strong>{{ item.label }}</strong>:
+            {{ 'status'|trans({}, 'Modules.Vxsendifico.Admin') }} {{ item.status }},
+            {{ item.count }} {{ 'items'|trans({}, 'Modules.Vxsendifico.Admin') }}
+            {% if item.last_success_at %}
+              , {{ 'last success'|trans({}, 'Modules.Vxsendifico.Admin') }} {{ item.last_success_at }}
+            {% endif %}
+            {% if item.selected_sender_reference %}
+              , {{ 'selected sender'|trans({}, 'Modules.Vxsendifico.Admin') }} {{ item.selected_sender_reference }}
+              {% if item.selected_sender_found and item.selected_sender_label %}
+                ({{ item.selected_sender_label }})
+              {% else %}
+                - {{ 'not found in cache'|trans({}, 'Modules.Vxsendifico.Admin') }}
+              {% endif %}
+            {% endif %}
+            {% if item.error_message %}
+              , {{ item.error_message }}
+            {% endif %}
+          </li>
+        {% else %}
+          <li>{{ 'No sender sync metadata is available yet.'|trans({}, 'Modules.Vxsendifico.Admin') }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <h3 class="card-header">
+      <i class="material-icons">local_shipping</i>
+      {{ 'Carrier provisioning'|trans({}, 'Modules.Vxsendifico.Admin') }}
+    </h3>
+    <div class="card-body">
+      <p class="mb-3">{{ 'Provision the persistent PrestaShop carriers that will later be filtered by Sendifico quotations in checkout.'|trans({}, 'Modules.Vxsendifico.Admin') }}</p>
+      <form action="{{ path('vx_sendifico_carriers_provision') }}" method="post" class="mb-4">
+        <input type="hidden" name="_token" value="{{ syncTokens.carriers }}">
+        <button type="submit" class="btn btn-primary">{{ 'Provision carriers'|trans({}, 'Modules.Vxsendifico.Admin') }}</button>
+      </form>
+
+      <ul class="mb-0">
+        {% for item in carrierOverview %}
+          <li>
+            <strong>{{ item.display_name }}</strong>:
+            {{ item.carrier_token }},
+            {% if item.is_fully_mapped %}
+              {{ 'mapped in all active shops'|trans({}, 'Modules.Vxsendifico.Admin') }}
+            {% else %}
+              {{ 'mapped in'|trans({}, 'Modules.Vxsendifico.Admin') }} {{ item.mapped_shop_count }} {{ 'shops'|trans({}, 'Modules.Vxsendifico.Admin') }}
+            {% endif %}
+            {% if item.mapped_shops is not empty %}
+              ({{ item.mapped_shops|join(', ') }})
+            {% endif %}
+          </li>
+        {% else %}
+          <li>{{ 'No carrier mapping overview is available yet.'|trans({}, 'Modules.Vxsendifico.Admin') }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+
   {% if configurationWarnings is not empty %}
     <div class="alert alert-warning" role="alert">
       <p class="mb-2"><strong>{{ 'Incomplete configuration detected for %context%.'|trans({'%context%': shopContextLabel}, 'Modules.Vxsendifico.Admin') }}</strong></p>
@@ -37,10 +146,24 @@
     <div class="card mb-3">
       <h3 class="card-header">
         <i class="material-icons">store</i>
-        {{ 'Sender and Checkout'|trans({}, 'Modules.Vxsendifico.Admin') }}
+        {{ 'Sender'|trans({}, 'Modules.Vxsendifico.Admin') }}
       </h3>
       <div class="card-body">
         {{ form_row(configurationForm.sender_reference) }}
+        {% if configurationForm.sender_reference.vars.disabled %}
+          <div class="alert alert-warning mb-0" role="alert">
+            {{ 'No sender addresses are available in cache for this context yet. Run "Sync senders" first.'|trans({}, 'Modules.Vxsendifico.Admin') }}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <h3 class="card-header">
+        <i class="material-icons">shopping_cart</i>
+        {{ 'Checkout'|trans({}, 'Modules.Vxsendifico.Admin') }}
+      </h3>
+      <div class="card-body">
         {{ form_row(configurationForm.cod_payment_methods) }}
         {{ form_row(configurationForm.allow_incomplete_checkout_address) }}
       </div>

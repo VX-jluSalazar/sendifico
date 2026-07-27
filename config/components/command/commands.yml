@@ -1,0 +1,13 @@
+# Admin console commands.
+services:
+    Vx\Sendifico\Command\SyncCacheCommand:
+        autowire: true
+        autoconfigure: true
+        tags:
+            - { name: console.command, command: vx_sendifico:sync-cache }
+
+    Vx\Sendifico\Command\ProvisionCarriersCommand:
+        autowire: true
+        autoconfigure: true
+        tags:
+            - { name: console.command, command: vx_sendifico:provision-carriers }

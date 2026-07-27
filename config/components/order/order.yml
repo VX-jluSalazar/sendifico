@@ -1,0 +1,5 @@
+# Shared shipment trace services.
+services:
+    Vx\Sendifico\Order\ShipmentTraceManager:
+        autowire: true
+        autoconfigure: true

@@ -23,13 +23,20 @@ class Installer
     public function install(Module $module): bool
     {
         return $this->registerHooks($module)
+            && (new CacheSchemaInstaller())->install()
+            && (new TraceabilitySchemaInstaller())->install()
+            && (new CarrierSchemaInstaller())->install()
             && (new ConfigurationInstaller())->install()
-            && $this->installTabs();
+            && $this->installTabs()
+            && (new CarrierProvisionInstaller())->install();
     }
 
     public function uninstall(): bool
     {
         return (new ConfigurationInstaller())->uninstall()
+            && (new CarrierSchemaInstaller())->uninstall()
+            && (new TraceabilitySchemaInstaller())->uninstall()
+            && (new CacheSchemaInstaller())->uninstall()
             && $this->uninstallTabs();
     }
 

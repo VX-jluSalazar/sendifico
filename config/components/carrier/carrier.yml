@@ -1,0 +1,13 @@
+# Admin carrier provisioning services.
+services:
+    Vx\Sendifico\Carrier\CarrierCatalogProvider:
+        autowire: true
+        autoconfigure: true
+
+    Vx\Sendifico\Carrier\CarrierProvisionService:
+        autowire: true
+        autoconfigure: true
+
+    Vx\Sendifico\Carrier\CarrierProvisionStatusProvider:
+        autowire: true
+        autoconfigure: true

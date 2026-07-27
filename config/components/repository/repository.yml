@@ -1,2 +1,37 @@
 # Shared repository services.
-services: {}
+services:
+    Vx\Sendifico\Repository\TerritoryRepository:
+        arguments:
+            - '@doctrine.dbal.default_connection'
+
+    Vx\Sendifico\Repository\SenderAddressRepository:
+        arguments:
+            - '@doctrine.dbal.default_connection'
+
+    Vx\Sendifico\Repository\SyncMetadataRepository:
+        arguments:
+            - '@doctrine.dbal.default_connection'
+
+    Vx\Sendifico\Repository\ShopRepository:
+        arguments:
+            - '@doctrine.dbal.default_connection'
+
+    Vx\Sendifico\Repository\ShipmentRepository:
+        arguments:
+            - '@doctrine.dbal.default_connection'
+
+    Vx\Sendifico\Repository\ShipmentEventRepository:
+        arguments:
+            - '@doctrine.dbal.default_connection'
+
+    Vx\Sendifico\Order\ShipmentTraceManager:
+        autowire: true
+        autoconfigure: true
+
+    Vx\Sendifico\Repository\CarrierMappingRepository:
+        arguments:
+            - '@doctrine.dbal.default_connection'
+
+    Vx\Sendifico\Repository\PrestaShopCarrierRepository:
+        arguments:
+            - '@doctrine.dbal.default_connection'

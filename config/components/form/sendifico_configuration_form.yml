@@ -15,6 +15,8 @@ services:
         arguments:
             - '@Vx\Sendifico\Configuration\SendificoDataConfiguration'
             - '@prestashop.adapter.shop.context'
+            - '@Vx\Sendifico\Repository\SenderAddressRepository'
+            - '@Vx\Sendifico\Repository\ShopRepository'
 
     Vx\Sendifico\Form\Admin\Type\SendificoConfigurationType:
         parent: 'form.type.translatable.aware'

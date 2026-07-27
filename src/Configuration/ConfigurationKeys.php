@@ -28,7 +28,7 @@ final class ConfigurationKeys
         self::COD_PAYMENT_METHODS => '',
         self::SENDER_REFERENCE => '',
         self::PURCHASE_WITH => 'walletAvailable',
-        self::AUTO_PURCHASE_ENABLED => true,
+        self::AUTO_PURCHASE_ENABLED => false,
         self::ALLOW_INCOMPLETE_CHECKOUT_ADDRESS => true,
         self::ENABLE_DEBUG_LOGS => false,
         self::LOG_RETENTION_DAYS => 30,
