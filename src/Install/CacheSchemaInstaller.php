@@ -87,6 +87,22 @@ final class CacheSchemaInstaller
                 KEY `idx_vx_sendifico_sync_shop` (`id_shop`),
                 KEY `idx_vx_sendifico_sync_country` (`country_code`)
             ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
+            'CREATE TABLE IF NOT EXISTS `' . _DB_PREFIX_ . 'vx_sendifico_address_meta` (
+                `id_vx_sendifico_address_meta` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                `id_address` INT UNSIGNED NOT NULL,
+                `id_shop` INT UNSIGNED NOT NULL,
+                `country_code` VARCHAR(2) NOT NULL,
+                `territory_base_id` VARCHAR(191) NOT NULL,
+                `territory1_name` VARCHAR(128) NOT NULL,
+                `territory2_name` VARCHAR(128) NOT NULL,
+                `territory3_name` VARCHAR(128) NOT NULL,
+                `created_at` DATETIME NOT NULL,
+                `updated_at` DATETIME NOT NULL,
+                PRIMARY KEY (`id_vx_sendifico_address_meta`),
+                UNIQUE KEY `ux_vx_sendifico_address_meta_address` (`id_address`),
+                KEY `idx_vx_sendifico_address_meta_shop` (`id_shop`),
+                KEY `idx_vx_sendifico_address_meta_territory` (`territory_base_id`)
+            ) ENGINE=' . _MYSQL_ENGINE_ . ' DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci',
         ];
     }
 
@@ -96,6 +112,7 @@ final class CacheSchemaInstaller
     private function getUninstallQueries(): array
     {
         return [
+            'DROP TABLE IF EXISTS `' . _DB_PREFIX_ . 'vx_sendifico_address_meta`',
             'DROP TABLE IF EXISTS `' . _DB_PREFIX_ . 'vx_sendifico_sync_meta`',
             'DROP TABLE IF EXISTS `' . _DB_PREFIX_ . 'vx_sendifico_sender_address`',
             'DROP TABLE IF EXISTS `' . _DB_PREFIX_ . 'vx_sendifico_territory`',

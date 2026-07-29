@@ -8,7 +8,17 @@ use Tab;
 
 class Installer
 {
-    private array $hooks = [];
+    private array $hooks = [
+        'displayHeader',
+        'actionFilterDeliveryOptionList',
+        'actionCarrierProcess',
+        'actionValidateStepComplete',
+        'additionalCustomerAddressFields',
+        'actionValidateCustomerAddressForm',
+        'actionObjectAddressAddAfter',
+        'actionObjectAddressUpdateAfter',
+        'actionObjectAddressDeleteAfter',
+    ];
 
     private array $tabs = [
         [

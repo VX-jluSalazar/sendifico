@@ -115,6 +115,29 @@ final class ShipmentRepository
     }
 
     /**
+     * @return array<string, mixed>|null
+     */
+    public function findPendingByCartId(int $cartId): ?array
+    {
+        if (!$this->tableExists()) {
+            return null;
+        }
+
+        $queryBuilder = $this->baseSelectQueryBuilder();
+        $statement = $queryBuilder
+            ->where('id_cart = :cartId')
+            ->andWhere('id_order IS NULL')
+            ->setParameter('cartId', $cartId)
+            ->orderBy('updated_at', 'DESC')
+            ->setMaxResults(1)
+            ->execute();
+
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+
+        return is_array($row) ? $row : null;
+    }
+
+    /**
      * @return array<int, array<string, mixed>>
      */
     public function findRetryableShipments(int $limit = 50): array

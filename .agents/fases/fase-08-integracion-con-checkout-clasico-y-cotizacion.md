@@ -19,6 +19,7 @@ Integrar el modulo con el checkout clasico para resolver territorio, cotizar y m
 - Integracion funcional de quotation en checkout.
 - Selector de territorio.
 - Filtro dinamico de carriers y tarifa exacta.
+- Resumen de implementacion: `.agents/entregables/fase-08/resumen-implementacion.md`
 
 ## Dependencias
 - Fase 05, 06 y 07.

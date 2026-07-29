@@ -1,3 +1,4 @@
 # Front-office kernel services for vx_sendifico.
 imports:
     - { resource: ../common.yml }
+    - { resource: ../components/checkout/*.yml }

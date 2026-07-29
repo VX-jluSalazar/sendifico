@@ -73,6 +73,62 @@ final class CarrierMappingRepository
         return is_array($rows) ? $rows : [];
     }
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function findByShopId(int $shopId): array
+    {
+        return $this->findByShopIds([$shopId]);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function findOneByShopIdAndCarrierId(int $shopId, int $carrierId): ?array
+    {
+        if (!$this->tableExists()) {
+            return null;
+        }
+
+        $statement = $this->connection->createQueryBuilder()
+            ->select('*')
+            ->from($this->getTableName())
+            ->where('id_shop = :shopId')
+            ->andWhere('id_carrier = :carrierId')
+            ->setParameter('shopId', $shopId)
+            ->setParameter('carrierId', $carrierId)
+            ->setMaxResults(1)
+            ->execute();
+
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+
+        return is_array($row) ? $row : null;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function findOneByShopIdAndCarrierToken(int $shopId, string $carrierToken): ?array
+    {
+        if (!$this->tableExists()) {
+            return null;
+        }
+
+        $statement = $this->connection->createQueryBuilder()
+            ->select('*')
+            ->from($this->getTableName())
+            ->where('id_shop = :shopId')
+            ->andWhere('carrier_token = :carrierToken')
+            ->setParameter('shopId', $shopId)
+            ->setParameter('carrierToken', $carrierToken)
+            ->setMaxResults(1)
+            ->execute();
+
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+
+        return is_array($row) ? $row : null;
+    }
+
     private function getTableName(): string
     {
         return _DB_PREFIX_ . 'vx_sendifico_carrier_map';

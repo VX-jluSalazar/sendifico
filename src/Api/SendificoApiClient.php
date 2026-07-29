@@ -39,10 +39,31 @@ final class SendificoApiClient
 
     /**
      * @param array{api_key:string, api_version:string, country:string} $connection
+     * @param array<string, mixed> $payload
+     *
+     * @return array{count:int, data:array<int, array<string, mixed>>, page:int, pageCount:int, total:int}
+     */
+    public function createQuotation(array $connection, array $payload): array
+    {
+        $response = $this->request('POST', '/quotation', $connection, $payload);
+        $responsePayload = $response['payload'] ?? [];
+
+        return [
+            'count' => (int) ($responsePayload['count'] ?? 0),
+            'data' => $responsePayload['data'] ?? [],
+            'page' => (int) ($responsePayload['page'] ?? 1),
+            'pageCount' => (int) ($responsePayload['pageCount'] ?? 1),
+            'total' => (int) ($responsePayload['total'] ?? 0),
+        ];
+    }
+
+    /**
+     * @param array{api_key:string, api_version:string, country:string} $connection
+     * @param array<string, mixed>|null $payload
      *
      * @return array<string, mixed>
      */
-    private function request(string $method, string $path, array $connection): array
+    private function request(string $method, string $path, array $connection, ?array $payload = null): array
     {
         $curl = curl_init();
         if ($curl === false) {
@@ -62,6 +83,10 @@ final class SendificoApiClient
             ],
             CURLOPT_TIMEOUT => 30,
         ]);
+
+        if ($payload !== null) {
+            curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        }
 
         $body = curl_exec($curl);
         $httpCode = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
