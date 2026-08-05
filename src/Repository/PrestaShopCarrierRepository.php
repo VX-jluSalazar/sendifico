@@ -190,6 +190,8 @@ final class PrestaShopCarrierRepository
 
     private function ensureDeliveryRow(int $carrierId, int $rangeId, int $zoneId): void
     {
+        $this->normalizeDeliveryScope($carrierId, $rangeId, $zoneId);
+
         $deliveryId = $this->connection->createQueryBuilder()
             ->select('id_delivery')
             ->from(_DB_PREFIX_ . 'delivery')
@@ -210,14 +212,35 @@ final class PrestaShopCarrierRepository
             return;
         }
 
-        $this->connection->insert(_DB_PREFIX_ . 'delivery', [
-            'id_shop' => null,
-            'id_shop_group' => null,
-            'id_carrier' => $carrierId,
-            'id_range_price' => 0,
-            'id_range_weight' => $rangeId,
-            'id_zone' => $zoneId,
-            'price' => 0.0,
-        ]);
+        $this->connection->executeStatement(
+            'INSERT INTO `' . _DB_PREFIX_ . 'delivery`
+                (id_shop, id_shop_group, id_carrier, id_range_price, id_range_weight, id_zone, price)
+             VALUES (NULL, NULL, :carrierId, 0, :rangeId, :zoneId, :price)',
+            [
+                'carrierId' => $carrierId,
+                'rangeId' => $rangeId,
+                'zoneId' => $zoneId,
+                'price' => 0.0,
+            ]
+        );
+    }
+
+    private function normalizeDeliveryScope(int $carrierId, int $rangeId, int $zoneId): void
+    {
+        $this->connection->executeStatement(
+            'UPDATE `' . _DB_PREFIX_ . 'delivery`
+             SET id_shop = NULL, id_shop_group = NULL
+             WHERE id_carrier = :carrierId
+               AND id_range_weight = :rangeId
+               AND id_range_price = 0
+               AND id_zone = :zoneId
+               AND id_shop = 0
+               AND id_shop_group = 0',
+            [
+                'carrierId' => $carrierId,
+                'rangeId' => $rangeId,
+                'zoneId' => $zoneId,
+            ]
+        );
     }
 }

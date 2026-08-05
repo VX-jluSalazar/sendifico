@@ -275,6 +275,8 @@ final class CarrierProvisionInstaller
 
     private function ensureDeliveryRow(int $carrierId, int $rangeId, int $zoneId): void
     {
+        $this->normalizeDeliveryScope($carrierId, $rangeId, $zoneId);
+
         $deliveryId = (int) Db::getInstance()->getValue(
             'SELECT id_delivery
             FROM `' . _DB_PREFIX_ . 'delivery`
@@ -290,14 +292,27 @@ final class CarrierProvisionInstaller
             return;
         }
 
-        Db::getInstance()->insert('delivery', [
-            'id_shop' => null,
-            'id_shop_group' => null,
-            'id_carrier' => (int) $carrierId,
-            'id_range_price' => 0,
-            'id_range_weight' => (int) $rangeId,
-            'id_zone' => (int) $zoneId,
-            'price' => 0,
-        ]);
+        Db::getInstance()->execute(
+            'INSERT INTO `' . _DB_PREFIX_ . 'delivery`
+                (id_shop, id_shop_group, id_carrier, id_range_price, id_range_weight, id_zone, price)
+             VALUES (NULL, NULL, ' . (int) $carrierId . ', 0, ' . (int) $rangeId . ', ' . (int) $zoneId . ', 0)'
+        );
+    }
+
+    private function normalizeDeliveryScope(int $carrierId, int $rangeId, int $zoneId): void
+    {
+        Db::getInstance()->update(
+            'delivery',
+            [
+                'id_shop' => null,
+                'id_shop_group' => null,
+            ],
+            'id_carrier = ' . (int) $carrierId . '
+              AND id_range_weight = ' . (int) $rangeId . '
+              AND id_range_price = 0
+              AND id_zone = ' . (int) $zoneId . '
+              AND id_shop = 0
+              AND id_shop_group = 0'
+        );
     }
 }
