@@ -112,6 +112,32 @@ Razon:
 - sin `id_state`, el flujo actual no puede completarse de forma confiable,
 - mover `territory1Name` a un campo custom evita depender de que Ecuador este parametrizado como estados de PrestaShop.
 
+## Actualizacion posterior
+Se cargo Ecuador en `ps_state` usando provincias, por lo que PrestaShop ya puede renderizar el campo nativo `id_state` y el flujo actual vuelve a ser viable bajo la Opcion A.
+
+Con esta decision operativa, el mapeo vigente queda asi:
+
+- `ps_state.name` -> `territory1Name`
+- `sendifico_canton` -> `territory2Name`
+- `city` -> `territory3Name`
+- `sendifico_territory_base_id` -> `territoryBaseId`
+
+La relacion entre provincia PrestaShop y territorio Sendifico se hace por nombre normalizado. El modulo normaliza mayusculas, tildes, espacios y separadores antes de comparar, pero no corrige abreviaturas, typos o diferencias semanticas entre ambos catalogos.
+
+Riesgo pendiente:
+
+- si Sendifico cambia `territory1Name`,
+- si se edita `ps_state.name`,
+- o si ambos catalogos usan nombres distintos para la misma provincia,
+
+la jerarquia puede dejar de resolver cantones, ciudades o `territory_base_id`.
+
+Mitigacion recomendada para una fase posterior:
+
+- agregar una tabla o configuracion explicita de equivalencias `id_state -> territory1_name` o `id_state -> territory1_key`,
+- usar el mapeo explicito como fuente primaria,
+- dejar la comparacion por nombre solo como fallback o diagnostico.
+
 ## Cambios ya realizados durante el diagnostico
 - Se corrigio el retorno del hook `additionalCustomerAddressFields` para no envolver doblemente los `FormField`.
 - Se ajusto el wiring del traductor en `front` usando `prestashop.adapter.legacy.context`.
@@ -128,3 +154,13 @@ Si se retoma esta linea de trabajo, la siguiente implementacion deberia ser:
 3. dejar de depender de `StateRepository` para la validacion principal,
 4. resolver `territory_base_id` solo con metadata local de Sendifico,
 5. actualizar fase 08.01 y su resumen con el nuevo mapeo funcional.
+
+## Actualizacion de estabilizacion
+Con Ecuador cargado en `ps_state`, se mantuvo el mapeo basado en `id_state`.
+
+Se corrigio un problema posterior al editar direcciones existentes:
+
+- el backend ahora renderiza el canton persistido como opcion inicial del select,
+- el JS usa el `territory_base_id` guardado para rehidratar canton y ciudad,
+- `canton` se marca requerido solo en modo Sendifico,
+- la validacion server-side sigue exigiendo `estado + canton + ciudad + territory_base_id` validos para el pais configurado.

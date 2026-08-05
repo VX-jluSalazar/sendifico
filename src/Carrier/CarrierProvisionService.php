@@ -29,6 +29,11 @@ final class CarrierProvisionService
         foreach ($this->catalogProvider->getCatalog() as $token => $definition) {
             try {
                 $carrierRow = $this->resolveOrCreateCarrier($definition);
+                $this->prestaShopCarrierRepository->ensureExternalCarrierEligibility(
+                    (int) $carrierRow['id_carrier'],
+                    $this->prestaShopCarrierRepository->getZoneIds()
+                );
+
                 foreach ($activeShopIds as $shopId) {
                     $this->carrierMappingRepository->upsert([
                         'id_shop' => $shopId,
@@ -84,7 +89,7 @@ final class CarrierProvisionService
         $carrier->is_module = true;
         $carrier->external_module_name = 'vx_sendifico';
         $carrier->shipping_external = true;
-        $carrier->need_range = false;
+        $carrier->need_range = true;
         $carrier->range_behavior = false;
         $carrier->shipping_handling = false;
         $carrier->is_free = false;

@@ -8,6 +8,9 @@ use Country;
 
 final class CheckoutContextResolver
 {
+    private const MIN_PARCEL_WEIGHT = 1.0;
+    private const MIN_PARCEL_DIMENSION = 1.0;
+
     public function getDeliveryAddress(Cart $cart): ?Address
     {
         if ((int) $cart->id_address_delivery <= 0) {
@@ -38,16 +41,11 @@ final class CheckoutContextResolver
      */
     public function buildParcel(Cart $cart, array $shopConfiguration): array
     {
-        $weight = (float) $cart->getTotalWeight();
-        if ($weight <= 0) {
-            $weight = (float) $shopConfiguration['default_weight'];
-        }
-
         return [
-            'weight' => $weight,
-            'length' => (float) $shopConfiguration['default_length'],
-            'width' => (float) $shopConfiguration['default_width'],
-            'height' => (float) $shopConfiguration['default_height'],
+            'weight' => max(self::MIN_PARCEL_WEIGHT, (float) $cart->getTotalWeight(), (float) $shopConfiguration['default_weight']),
+            'length' => max(self::MIN_PARCEL_DIMENSION, (float) $shopConfiguration['default_length']),
+            'width' => max(self::MIN_PARCEL_DIMENSION, (float) $shopConfiguration['default_width']),
+            'height' => max(self::MIN_PARCEL_DIMENSION, (float) $shopConfiguration['default_height']),
         ];
     }
 

@@ -9,6 +9,9 @@ use Vx\Sendifico\Carrier\CarrierCatalogProvider;
 
 final class CarrierProvisionInstaller
 {
+    private const SENDIFICO_WEIGHT_RANGE_MIN = 0.0;
+    private const SENDIFICO_WEIGHT_RANGE_MAX = 100000.0;
+
     public function install(): bool
     {
         $shopIds = $this->getActiveShopIds();
@@ -19,6 +22,7 @@ final class CarrierProvisionInstaller
         $catalogProvider = new CarrierCatalogProvider();
         foreach ($catalogProvider->getCatalog() as $definition) {
             $carrier = $this->resolveOrCreateCarrier($definition, $shopIds);
+            $this->ensureExternalCarrierEligibility((int) $carrier['id_carrier']);
 
             if (!$this->upsertMappings($shopIds, $definition, $carrier)) {
                 return false;
@@ -48,7 +52,7 @@ final class CarrierProvisionInstaller
         $carrier->is_module = true;
         $carrier->external_module_name = 'vx_sendifico';
         $carrier->shipping_external = true;
-        $carrier->need_range = false;
+        $carrier->need_range = true;
         $carrier->range_behavior = false;
         $carrier->shipping_handling = false;
         $carrier->is_free = false;
@@ -229,5 +233,71 @@ final class CarrierProvisionInstaller
         );
 
         return array_map(static fn (array $row): int => (int) $row['id_zone'], is_array($rows) ? $rows : []);
+    }
+
+    private function ensureExternalCarrierEligibility(int $carrierId): void
+    {
+        Db::getInstance()->update('carrier', [
+            'shipping_external' => 1,
+            'need_range' => 1,
+            'shipping_method' => 1,
+            'range_behavior' => 0,
+        ], 'id_carrier = ' . (int) $carrierId);
+
+        $rangeId = $this->findOrCreateWeightRange($carrierId);
+        foreach ($this->getZoneIds() as $zoneId) {
+            $this->ensureDeliveryRow($carrierId, $rangeId, $zoneId);
+        }
+    }
+
+    private function findOrCreateWeightRange(int $carrierId): int
+    {
+        $rangeId = (int) Db::getInstance()->getValue(
+            'SELECT id_range_weight
+            FROM `' . _DB_PREFIX_ . 'range_weight`
+            WHERE id_carrier = ' . (int) $carrierId . '
+              AND delimiter1 = ' . (float) self::SENDIFICO_WEIGHT_RANGE_MIN . '
+              AND delimiter2 = ' . (float) self::SENDIFICO_WEIGHT_RANGE_MAX
+        );
+
+        if ($rangeId > 0) {
+            return $rangeId;
+        }
+
+        Db::getInstance()->insert('range_weight', [
+            'id_carrier' => (int) $carrierId,
+            'delimiter1' => (float) self::SENDIFICO_WEIGHT_RANGE_MIN,
+            'delimiter2' => (float) self::SENDIFICO_WEIGHT_RANGE_MAX,
+        ]);
+
+        return (int) Db::getInstance()->Insert_ID();
+    }
+
+    private function ensureDeliveryRow(int $carrierId, int $rangeId, int $zoneId): void
+    {
+        $deliveryId = (int) Db::getInstance()->getValue(
+            'SELECT id_delivery
+            FROM `' . _DB_PREFIX_ . 'delivery`
+            WHERE id_carrier = ' . (int) $carrierId . '
+              AND id_range_weight = ' . (int) $rangeId . '
+              AND id_range_price = 0
+              AND id_zone = ' . (int) $zoneId . '
+              AND id_shop IS NULL
+              AND id_shop_group IS NULL'
+        );
+
+        if ($deliveryId > 0) {
+            return;
+        }
+
+        Db::getInstance()->insert('delivery', [
+            'id_shop' => null,
+            'id_shop_group' => null,
+            'id_carrier' => (int) $carrierId,
+            'id_range_price' => 0,
+            'id_range_weight' => (int) $rangeId,
+            'id_zone' => (int) $zoneId,
+            'price' => 0,
+        ]);
     }
 }

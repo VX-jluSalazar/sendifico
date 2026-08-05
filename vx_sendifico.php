@@ -23,7 +23,7 @@ class Vx_Sendifico extends Module
     {
         $this->name = 'vx_sendifico';
         $this->tab = 'shipping_logistics';
-        $this->version = '0.6.0';
+        $this->version = '0.6.1';
         $this->author = 'Velox';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '8.2.1', 'max' => _PS_VERSION_];

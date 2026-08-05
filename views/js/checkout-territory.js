@@ -56,6 +56,50 @@
     return select.options[select.selectedIndex].text || '';
   }
 
+  function findTerritoryByBaseId(territoryBaseId) {
+    var stateKey;
+    var cantonKey;
+    var cityKey;
+    var stateNode;
+    var cantonNode;
+    var cityNode;
+
+    if (!territoryBaseId) {
+      return null;
+    }
+
+    for (stateKey in config.territories) {
+      if (!Object.prototype.hasOwnProperty.call(config.territories, stateKey)) {
+        continue;
+      }
+
+      stateNode = config.territories[stateKey];
+      for (cantonKey in stateNode.cantons) {
+        if (!Object.prototype.hasOwnProperty.call(stateNode.cantons, cantonKey)) {
+          continue;
+        }
+
+        cantonNode = stateNode.cantons[cantonKey];
+        for (cityKey in cantonNode.cities) {
+          if (!Object.prototype.hasOwnProperty.call(cantonNode.cities, cityKey)) {
+            continue;
+          }
+
+          cityNode = cantonNode.cities[cityKey];
+          if (cityNode.territoryBaseId === territoryBaseId) {
+            return {
+              state: stateNode.label,
+              canton: cantonNode.label,
+              city: cityNode.label
+            };
+          }
+        }
+      }
+    }
+
+    return null;
+  }
+
   function queryByNames(form, names) {
     var i;
 
@@ -85,6 +129,7 @@
     }
 
     var citySelect = form.querySelector('[data-vx-sendifico-city-select]') || buildCitySelect(cityInput);
+    var initialTerritory = findTerritoryByBaseId(territoryInput.value);
     form.setAttribute('data-vx-sendifico-enhanced', '1');
     var stateGroup = stateSelect.closest('.form-group');
     var cantonGroup = cantonSelect.closest('.form-group');
@@ -133,7 +178,7 @@
 
     function populateCantons() {
       var stateNode = getStateNode();
-      var currentCanton = cantonSelect.value;
+      var currentCanton = cantonSelect.value || (initialTerritory ? initialTerritory.canton : '');
       clearOptions(cantonSelect, 'Select canton');
 
       if (!stateNode) {
@@ -144,7 +189,7 @@
 
       appendOptions(cantonSelect, stateNode.cantons);
       if (currentCanton && stateNode.cantons[normalize(currentCanton)]) {
-        cantonSelect.value = currentCanton;
+        cantonSelect.value = stateNode.cantons[normalize(currentCanton)].label;
       }
 
       populateCities();
@@ -152,7 +197,7 @@
 
     function populateCities() {
       var cantonNode = getCantonNode();
-      var currentCity = cityInput.value || citySelect.value;
+      var currentCity = cityInput.value || citySelect.value || (initialTerritory ? initialTerritory.city : '');
       clearOptions(citySelect, 'Select city');
 
       if (!cantonNode) {
@@ -172,6 +217,7 @@
     function setNativeMode() {
       citySelect.style.display = 'none';
       cityInput.type = 'text';
+      cantonSelect.required = false;
       if (cantonGroup) {
         cantonGroup.style.display = 'none';
       }
@@ -181,6 +227,7 @@
     function setSendificoMode() {
       cityInput.type = 'hidden';
       citySelect.style.display = '';
+      cantonSelect.required = true;
       if (cantonGroup) {
         cantonGroup.style.display = '';
       }

@@ -33,6 +33,11 @@ final class AddressTerritoryFormService
     public function buildAdditionalFields(int $shopId, ?int $addressId = null): array
     {
         $metadata = $addressId !== null && $addressId > 0 ? $this->addressMetadataRepository->findByAddressId($addressId) : null;
+        $selectedCanton = is_array($metadata) ? (string) ($metadata['territory2_name'] ?? '') : '';
+        $cantonValues = ['' => $this->translator->trans('Select canton', [], 'Modules.Vxsendifico.Shop')];
+        if ($selectedCanton !== '') {
+            $cantonValues[$selectedCanton] = $selectedCanton;
+        }
 
         return [
             (new FormField())
@@ -40,8 +45,8 @@ final class AddressTerritoryFormService
                 ->setType('select')
                 ->setLabel($this->translator->trans('Canton', [], 'Modules.Vxsendifico.Shop'))
                 ->setRequired(false)
-                ->setAvailableValues(['' => $this->translator->trans('Select canton', [], 'Modules.Vxsendifico.Shop')])
-                ->setValue(is_array($metadata) ? (string) ($metadata['territory2_name'] ?? '') : ''),
+                ->setAvailableValues($cantonValues)
+                ->setValue($selectedCanton),
             (new FormField())
                 ->setName(self::FIELD_TERRITORY_BASE_ID)
                 ->setType('hidden')
