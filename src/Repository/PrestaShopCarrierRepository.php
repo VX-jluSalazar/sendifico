@@ -7,6 +7,9 @@ use PDO;
 
 final class PrestaShopCarrierRepository
 {
+    private const SENDIFICO_WEIGHT_RANGE_MIN = 0.0;
+    private const SENDIFICO_WEIGHT_RANGE_MAX = 100000.0;
+
     public function __construct(
         private readonly Connection $connection
     ) {
@@ -132,5 +135,89 @@ final class PrestaShopCarrierRepository
         $rows = $statement->fetchAll(PDO::FETCH_COLUMN);
 
         return array_map('intval', $rows);
+    }
+
+    /**
+     * PrestaShop only includes module carriers in cart packages when need_range = 1 and
+     * a matching delivery range exists. Sendifico still returns the final price externally.
+     *
+     * @param array<int, int> $zoneIds
+     */
+    public function ensureExternalCarrierEligibility(int $carrierId, array $zoneIds): void
+    {
+        $this->connection->update(_DB_PREFIX_ . 'carrier', [
+            'shipping_external' => 1,
+            'need_range' => 1,
+            'shipping_method' => 1,
+            'range_behavior' => 0,
+        ], [
+            'id_carrier' => $carrierId,
+        ]);
+
+        $rangeId = $this->findOrCreateWeightRange($carrierId);
+        foreach ($zoneIds as $zoneId) {
+            $this->ensureDeliveryRow($carrierId, $rangeId, (int) $zoneId);
+        }
+    }
+
+    private function findOrCreateWeightRange(int $carrierId): int
+    {
+        $rangeId = $this->connection->createQueryBuilder()
+            ->select('id_range_weight')
+            ->from(_DB_PREFIX_ . 'range_weight')
+            ->where('id_carrier = :carrierId')
+            ->andWhere('delimiter1 = :delimiter1')
+            ->andWhere('delimiter2 = :delimiter2')
+            ->setParameter('carrierId', $carrierId)
+            ->setParameter('delimiter1', self::SENDIFICO_WEIGHT_RANGE_MIN)
+            ->setParameter('delimiter2', self::SENDIFICO_WEIGHT_RANGE_MAX)
+            ->setMaxResults(1)
+            ->execute()
+            ->fetchColumn();
+
+        if ($rangeId !== false) {
+            return (int) $rangeId;
+        }
+
+        $this->connection->insert(_DB_PREFIX_ . 'range_weight', [
+            'id_carrier' => $carrierId,
+            'delimiter1' => self::SENDIFICO_WEIGHT_RANGE_MIN,
+            'delimiter2' => self::SENDIFICO_WEIGHT_RANGE_MAX,
+        ]);
+
+        return (int) $this->connection->lastInsertId();
+    }
+
+    private function ensureDeliveryRow(int $carrierId, int $rangeId, int $zoneId): void
+    {
+        $deliveryId = $this->connection->createQueryBuilder()
+            ->select('id_delivery')
+            ->from(_DB_PREFIX_ . 'delivery')
+            ->where('id_carrier = :carrierId')
+            ->andWhere('id_range_weight = :rangeId')
+            ->andWhere('id_zone = :zoneId')
+            ->andWhere('id_range_price = 0')
+            ->andWhere('id_shop IS NULL')
+            ->andWhere('id_shop_group IS NULL')
+            ->setParameter('carrierId', $carrierId)
+            ->setParameter('rangeId', $rangeId)
+            ->setParameter('zoneId', $zoneId)
+            ->setMaxResults(1)
+            ->execute()
+            ->fetchColumn();
+
+        if ($deliveryId !== false) {
+            return;
+        }
+
+        $this->connection->insert(_DB_PREFIX_ . 'delivery', [
+            'id_shop' => null,
+            'id_shop_group' => null,
+            'id_carrier' => $carrierId,
+            'id_range_price' => 0,
+            'id_range_weight' => $rangeId,
+            'id_zone' => $zoneId,
+            'price' => 0.0,
+        ]);
     }
 }

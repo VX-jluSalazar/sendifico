@@ -35,3 +35,15 @@ services:
     Vx\Sendifico\Repository\PrestaShopCarrierRepository:
         arguments:
             - '@doctrine.dbal.default_connection'
+
+    Vx\Sendifico\Repository\AddressMetadataRepository:
+        arguments:
+            - '@doctrine.dbal.default_connection'
+
+    Vx\Sendifico\Repository\CountryRepository:
+        arguments:
+            - '@doctrine.dbal.default_connection'
+
+    Vx\Sendifico\Repository\StateRepository:
+        arguments:
+            - '@doctrine.dbal.default_connection'

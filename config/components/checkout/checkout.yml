@@ -1,0 +1,33 @@
+# Front checkout services.
+services:
+    Vx\Sendifico\Api\SendificoApiClient:
+        autowire: true
+        autoconfigure: true
+
+    Vx\Sendifico\Configuration\SendificoConnectionConfigurationProvider:
+        arguments:
+            - '@prestashop.adapter.legacy.configuration'
+
+    Vx\Sendifico\Checkout\CheckoutConfigurationProvider:
+        arguments:
+            - '@Vx\Sendifico\Configuration\SendificoConnectionConfigurationProvider'
+            - '@prestashop.adapter.legacy.configuration'
+
+    Vx\Sendifico\Checkout\CheckoutContextResolver:
+        autowire: true
+        autoconfigure: true
+
+    Vx\Sendifico\Checkout\AddressTerritoryFormService:
+        autowire: true
+        autoconfigure: true
+        arguments:
+            $translator: "@=service('prestashop.adapter.legacy.context').getContext().getTranslator()"
+            
+    Vx\Sendifico\Checkout\CheckoutQuotationService:
+        autowire: true
+        autoconfigure: true
+
+    Vx\Sendifico\Checkout\CheckoutHookHandler:
+        autowire: true
+        autoconfigure: true
+        public: true

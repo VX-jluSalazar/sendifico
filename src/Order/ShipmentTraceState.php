@@ -4,7 +4,9 @@ namespace Vx\Sendifico\Order;
 
 final class ShipmentTraceState
 {
+    public const QUOTE_PENDING = 'quote_pending';
     public const QUOTED = 'quoted';
+    public const QUOTE_FAILED = 'quote_failed';
     public const SHIPMENT_PENDING = 'shipment_pending';
     public const SHIPMENT_CREATED = 'shipment_created';
     public const PURCHASED = 'purchased';

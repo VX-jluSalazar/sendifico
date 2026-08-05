@@ -61,6 +61,82 @@ final class TerritoryRepository
         return (int) $statement->fetchColumn();
     }
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function findByCountry(string $countryCode): array
+    {
+        if (!$this->tableExists()) {
+            return [];
+        }
+
+        $statement = $this->connection->createQueryBuilder()
+            ->select('*')
+            ->from($this->getTableName())
+            ->where('country_code = :countryCode')
+            ->setParameter('countryCode', $countryCode)
+            ->orderBy('territory1_name', 'ASC')
+            ->addOrderBy('territory2_name', 'ASC')
+            ->addOrderBy('territory3_name', 'ASC')
+            ->execute();
+
+        $rows = $statement->fetchAll(\PDO::FETCH_ASSOC);
+
+        return is_array($rows) ? $rows : [];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function findOneByBaseId(string $countryCode, string $territoryBaseId): ?array
+    {
+        if (!$this->tableExists()) {
+            return null;
+        }
+
+        $statement = $this->connection->createQueryBuilder()
+            ->select('*')
+            ->from($this->getTableName())
+            ->where('country_code = :countryCode')
+            ->andWhere('territory_base_id = :territoryBaseId')
+            ->setParameter('countryCode', $countryCode)
+            ->setParameter('territoryBaseId', $territoryBaseId)
+            ->setMaxResults(1)
+            ->execute();
+
+        $row = $statement->fetch(\PDO::FETCH_ASSOC);
+
+        return is_array($row) ? $row : null;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function findOneByNames(string $countryCode, string $territory1Name, string $territory2Name, string $territory3Name): ?array
+    {
+        if (!$this->tableExists()) {
+            return null;
+        }
+
+        $statement = $this->connection->createQueryBuilder()
+            ->select('*')
+            ->from($this->getTableName())
+            ->where('country_code = :countryCode')
+            ->andWhere('LOWER(territory1_name) = LOWER(:territory1Name)')
+            ->andWhere('LOWER(territory2_name) = LOWER(:territory2Name)')
+            ->andWhere('LOWER(territory3_name) = LOWER(:territory3Name)')
+            ->setParameter('countryCode', $countryCode)
+            ->setParameter('territory1Name', $territory1Name)
+            ->setParameter('territory2Name', $territory2Name)
+            ->setParameter('territory3Name', $territory3Name)
+            ->setMaxResults(1)
+            ->execute();
+
+        $row = $statement->fetch(\PDO::FETCH_ASSOC);
+
+        return is_array($row) ? $row : null;
+    }
+
     private function getTableName(): string
     {
         return _DB_PREFIX_ . 'vx_sendifico_territory';
