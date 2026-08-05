@@ -6,3 +6,10 @@ services:
         autoconfigure: true
         tags:
             - { name: controller.service_arguments }
+
+    Vx\Sendifico\Controller\Admin\ShipmentOperationsController:
+        public: true
+        autowire: true
+        autoconfigure: true
+        tags:
+            - { name: controller.service_arguments }

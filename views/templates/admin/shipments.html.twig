@@ -1,0 +1,149 @@
+{% extends '@PrestaShop/Admin/layout.html.twig' %}
+
+{% block content %}
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-header-title">{{ 'Shipment operations'|trans({}, 'Modules.Vxsendifico.Admin') }}</h3>
+    </div>
+    <div class="card-body">
+      <form method="get" action="{{ path('vx_sendifico_shipments_index') }}" class="form-inline mb-3">
+        <div class="form-group mr-2 mb-2">
+          <label for="filter-id-order" class="mr-2">{{ 'Order ID'|trans({}, 'Modules.Vxsendifico.Admin') }}</label>
+          <input id="filter-id-order" type="number" min="0" name="id_order" value="{{ shipmentsListing.filters.id_order ?: '' }}" class="form-control">
+        </div>
+        <div class="form-group mr-2 mb-2">
+          <label for="filter-id-cart" class="mr-2">{{ 'Cart ID'|trans({}, 'Modules.Vxsendifico.Admin') }}</label>
+          <input id="filter-id-cart" type="number" min="0" name="id_cart" value="{{ shipmentsListing.filters.id_cart ?: '' }}" class="form-control">
+        </div>
+        <div class="form-group mr-2 mb-2">
+          <label for="filter-local-state" class="mr-2">{{ 'State'|trans({}, 'Modules.Vxsendifico.Admin') }}</label>
+          <select id="filter-local-state" name="local_state" class="form-control">
+            {% for value, label in stateChoices %}
+              <option value="{{ value }}" {% if shipmentsListing.filters.local_state == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-group mr-2 mb-2">
+          <label for="filter-is-paid" class="mr-2">{{ 'Paid'|trans({}, 'Modules.Vxsendifico.Admin') }}</label>
+          <select id="filter-is-paid" name="is_paid" class="form-control">
+            <option value="">{{ 'All'|trans({}, 'Admin.Global') }}</option>
+            <option value="1" {% if shipmentsListing.filters.is_paid == '1' %}selected{% endif %}>{{ 'Yes'|trans({}, 'Admin.Global') }}</option>
+            <option value="0" {% if shipmentsListing.filters.is_paid == '0' %}selected{% endif %}>{{ 'No'|trans({}, 'Admin.Global') }}</option>
+          </select>
+        </div>
+        <div class="form-group mr-2 mb-2">
+          <div class="form-check mt-2">
+            <input id="filter-retryable" type="checkbox" name="retryable" value="1" class="form-check-input" {% if shipmentsListing.filters.retryable %}checked{% endif %}>
+            <label for="filter-retryable" class="form-check-label">{{ 'Retryable only'|trans({}, 'Modules.Vxsendifico.Admin') }}</label>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary mr-2 mb-2">{{ 'Filter'|trans({}, 'Admin.Actions') }}</button>
+        <a href="{{ path('vx_sendifico_shipments_index') }}" class="btn btn-outline-secondary mb-2">{{ 'Reset'|trans({}, 'Admin.Actions') }}</a>
+      </form>
+
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>{{ 'Trace'|trans({}, 'Modules.Vxsendifico.Admin') }}</th>
+              <th>{{ 'Order / Cart'|trans({}, 'Modules.Vxsendifico.Admin') }}</th>
+              <th>{{ 'State'|trans({}, 'Modules.Vxsendifico.Admin') }}</th>
+              <th>{{ 'Remote'|trans({}, 'Modules.Vxsendifico.Admin') }}</th>
+              <th>{{ 'Tracking'|trans({}, 'Modules.Vxsendifico.Admin') }}</th>
+              <th>{{ 'Last error'|trans({}, 'Modules.Vxsendifico.Admin') }}</th>
+              <th>{{ 'Actions'|trans({}, 'Admin.Global') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in shipmentsListing.rows %}
+              <tr>
+                <td>
+                  <strong>#{{ row.id_vx_sendifico_shipment }}</strong><br>
+                  <small>{{ row.updated_at }}</small>
+                </td>
+                <td>
+                  {{ row.id_order ?: 'n/a' }} / {{ row.id_cart ?: 'n/a' }}<br>
+                  <small>{{ row.ext_id ?: row.carrier_token ?: 'n/a' }}</small>
+                </td>
+                <td>
+                  <code>{{ row.local_state }}</code><br>
+                  <small>{{ row.remote_status ?: 'n/a' }}</small>
+                </td>
+                <td>
+                  {{ row.remote_shipment_id ?: 'n/a' }}<br>
+                  <small>{{ row.is_paid ? 'paid' : 'unpaid' }}</small>
+                </td>
+                <td>
+                  {% if row.latest_tracking_number %}
+                    <strong>{{ row.latest_tracking_number }}</strong><br>
+                    {% if row.latest_tracking_url %}
+                      <a href="{{ row.latest_tracking_url }}" target="_blank" rel="noopener">{{ 'Open tracking'|trans({}, 'Modules.Vxsendifico.Admin') }}</a>
+                    {% endif %}
+                  {% else %}
+                    n/a
+                  {% endif %}
+                  {% if row.latest_label_url %}
+                    <br><a href="{{ row.latest_label_url }}" target="_blank" rel="noopener">{{ 'Open label'|trans({}, 'Modules.Vxsendifico.Admin') }}</a>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if row.last_error_code or row.last_error_message %}
+                    <code>{{ row.last_error_code ?: 'n/a' }}</code>
+                    {% if row.last_error_message %}
+                      <div><small>{{ row.last_error_message }}</small></div>
+                    {% endif %}
+                  {% else %}
+                    n/a
+                  {% endif %}
+                </td>
+                <td>
+                  {% if row.actions.can_retry_purchase %}
+                    <form method="post" action="{{ path('vx_sendifico_shipments_retry_purchase', {'shipmentTraceId': row.id_vx_sendifico_shipment}) }}" class="mb-1">
+                      <input type="hidden" name="_token" value="{{ actionTokens[row.id_vx_sendifico_shipment].retry_purchase }}">
+                      <button type="submit" class="btn btn-sm btn-outline-primary">{{ 'Retry purchase'|trans({}, 'Modules.Vxsendifico.Admin') }}</button>
+                    </form>
+                  {% endif %}
+                  {% if row.actions.can_generate_tracking %}
+                    <form method="post" action="{{ path('vx_sendifico_shipments_generate_tracking', {'shipmentTraceId': row.id_vx_sendifico_shipment}) }}" class="mb-1">
+                      <input type="hidden" name="_token" value="{{ actionTokens[row.id_vx_sendifico_shipment].generate_tracking }}">
+                      <button type="submit" class="btn btn-sm btn-outline-primary">{{ 'Generate tracking'|trans({}, 'Modules.Vxsendifico.Admin') }}</button>
+                    </form>
+                  {% endif %}
+                  {% if row.actions.can_generate_label %}
+                    <form method="post" action="{{ path('vx_sendifico_shipments_generate_label', {'shipmentTraceId': row.id_vx_sendifico_shipment}) }}">
+                      <input type="hidden" name="_token" value="{{ actionTokens[row.id_vx_sendifico_shipment].generate_label }}">
+                      <button type="submit" class="btn btn-sm btn-outline-primary">{{ 'Generate label URL'|trans({}, 'Modules.Vxsendifico.Admin') }}</button>
+                    </form>
+                  {% endif %}
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td colspan="7">{{ 'No shipment traces were found for the selected filters.'|trans({}, 'Modules.Vxsendifico.Admin') }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if shipmentsListing.page_count > 1 %}
+        <nav aria-label="Shipment pagination">
+          <ul class="pagination">
+            {% for pageNumber in 1..shipmentsListing.page_count %}
+              <li class="page-item {% if pageNumber == shipmentsListing.page %}active{% endif %}">
+                <a class="page-link" href="{{ path('vx_sendifico_shipments_index', {
+                  page: pageNumber,
+                  id_order: shipmentsListing.filters.id_order,
+                  id_cart: shipmentsListing.filters.id_cart,
+                  local_state: shipmentsListing.filters.local_state,
+                  is_paid: shipmentsListing.filters.is_paid,
+                  retryable: shipmentsListing.filters.retryable ? 1 : 0
+                }) }}">{{ pageNumber }}</a>
+              </li>
+            {% endfor %}
+          </ul>
+        </nav>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

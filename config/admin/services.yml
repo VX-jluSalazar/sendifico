@@ -1,6 +1,7 @@
 # Admin kernel services for vx_sendifico.
 imports:
     - { resource: ../common.yml }
+    - { resource: ../components/checkout/*.yml }
     - { resource: ../components/form/*.yml }
     - { resource: ../components/carrier/*.yml }
     - { resource: ../components/sync/*.yml }

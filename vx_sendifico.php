@@ -8,6 +8,8 @@ require_once __DIR__ . '/vendor/autoload.php';
 use PrestaShop\PrestaShop\Adapter\SymfonyContainer;
 use Vx\Sendifico\Checkout\CheckoutHookHandler;
 use Vx\Sendifico\Install\Installer;
+use Vx\Sendifico\Order\ShipmentBackOfficeViewProvider;
+use Vx\Sendifico\Order\OrderLifecycleHookHandler;
 
 class Vx_Sendifico extends Module
 {
@@ -23,7 +25,7 @@ class Vx_Sendifico extends Module
     {
         $this->name = 'vx_sendifico';
         $this->tab = 'shipping_logistics';
-        $this->version = '0.6.1';
+        $this->version = '0.9.0';
         $this->author = 'Velox';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '8.2.1', 'max' => _PS_VERSION_];
@@ -181,6 +183,74 @@ class Vx_Sendifico extends Module
         $hookHandler->deleteAddressMetadata((int) $address->id);
     }
 
+    public function hookActionValidateOrder(array $params): void
+    {
+        $hookHandler = $this->getOrderLifecycleHookHandler();
+        $order = $params['order'] ?? null;
+        $orderState = $params['orderStatus'] ?? null;
+
+        if ($hookHandler === null || !$order instanceof Order) {
+            return;
+        }
+
+        $hookHandler->handleValidatedOrder($order, $orderState instanceof OrderState ? $orderState : null);
+    }
+
+    public function hookActionOrderStatusPostUpdate(array $params): void
+    {
+        $hookHandler = $this->getOrderLifecycleHookHandler();
+        $orderState = $params['newOrderStatus'] ?? null;
+        $orderId = isset($params['id_order']) ? (int) $params['id_order'] : 0;
+
+        if ($hookHandler === null || $orderId <= 0) {
+            return;
+        }
+
+        $hookHandler->handleOrderStatusPostUpdate($orderId, $orderState instanceof OrderState ? $orderState : null);
+    }
+
+    public function hookDisplayAdminOrderSideBottom(array $params): string
+    {
+        $orderId = isset($params['id_order']) ? (int) $params['id_order'] : 0;
+        if ($orderId <= 0) {
+            return '';
+        }
+
+        $viewProvider = $this->getShipmentBackOfficeViewProvider();
+        $container = SymfonyContainer::getInstance();
+        if ($viewProvider === null || $container === null || !$container->has('twig') || !$container->has('router') || !$container->has('security.csrf.token_manager')) {
+            return '';
+        }
+
+        $overview = $viewProvider->getOrderOverview($orderId);
+        if ($overview === null) {
+            return '';
+        }
+
+        $traceId = (int) ($overview['trace']['id_vx_sendifico_shipment'] ?? 0);
+        if ($traceId <= 0) {
+            return '';
+        }
+
+        $router = $container->get('router');
+        $tokenManager = $container->get('security.csrf.token_manager');
+
+        return $container->get('twig')->render('@Modules/vx_sendifico/views/templates/admin/order_shipment_panel.html.twig', [
+            'shipmentOverview' => $overview,
+            'shipmentsListUrl' => $router->generate('vx_sendifico_shipments_index', ['id_order' => $orderId]),
+            'actionUrls' => [
+                'retry_purchase' => $router->generate('vx_sendifico_shipments_retry_purchase', ['shipmentTraceId' => $traceId]),
+                'generate_tracking' => $router->generate('vx_sendifico_shipments_generate_tracking', ['shipmentTraceId' => $traceId]),
+                'generate_label' => $router->generate('vx_sendifico_shipments_generate_label', ['shipmentTraceId' => $traceId]),
+            ],
+            'actionTokens' => [
+                'retry_purchase' => $tokenManager->getToken('vx_sendifico_retry_purchase_' . $traceId)->getValue(),
+                'generate_tracking' => $tokenManager->getToken('vx_sendifico_generate_tracking_' . $traceId)->getValue(),
+                'generate_label' => $tokenManager->getToken('vx_sendifico_generate_label_' . $traceId)->getValue(),
+            ],
+        ]);
+    }
+
     public function getOrderShippingCostExternal($params)
     {
         $hookHandler = $this->getCheckoutHookHandler();
@@ -203,9 +273,37 @@ class Vx_Sendifico extends Module
 
     private function getCheckoutHookHandler(): ?CheckoutHookHandler
     {
-        $service = $this->get(CheckoutHookHandler::class);
+        try {
+            $service = $this->get(CheckoutHookHandler::class);
+        } catch (\Throwable) {
+            return null;
+        }
 
         return $service instanceof CheckoutHookHandler ? $service : null;
+    }
+
+    private function getOrderLifecycleHookHandler(): ?OrderLifecycleHookHandler
+    {
+        $container = SymfonyContainer::getInstance();
+        if ($container === null || !$container->has(OrderLifecycleHookHandler::class)) {
+            return null;
+        }
+
+        $service = $this->get(OrderLifecycleHookHandler::class);
+
+        return $service instanceof OrderLifecycleHookHandler ? $service : null;
+    }
+
+    private function getShipmentBackOfficeViewProvider(): ?ShipmentBackOfficeViewProvider
+    {
+        $container = SymfonyContainer::getInstance();
+        if ($container === null || !$container->has(ShipmentBackOfficeViewProvider::class)) {
+            return null;
+        }
+
+        $service = $this->get(ShipmentBackOfficeViewProvider::class);
+
+        return $service instanceof ShipmentBackOfficeViewProvider ? $service : null;
     }
 
     /**

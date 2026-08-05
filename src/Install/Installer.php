@@ -13,11 +13,14 @@ class Installer
         'actionFilterDeliveryOptionList',
         'actionCarrierProcess',
         'actionValidateStepComplete',
+        'actionValidateOrder',
+        'actionOrderStatusPostUpdate',
         'additionalCustomerAddressFields',
         'actionValidateCustomerAddressForm',
         'actionObjectAddressAddAfter',
         'actionObjectAddressUpdateAfter',
         'actionObjectAddressDeleteAfter',
+        'displayAdminOrderSideBottom',
     ];
 
     private array $tabs = [
@@ -28,6 +31,13 @@ class Installer
             'parent_class_name' => 'CONFIGURE',
             'visible' => false,
         ],
+        [
+            'name' => 'vx_sendifico',
+            'class_name' => 'AdminVxSendificoOperations',
+            'label' => 'Sendifico Shipments',
+            'parent_class_name' => 'CONFIGURE',
+            'visible' => true,
+        ],
     ];
 
     public function install(Module $module): bool
@@ -37,13 +47,15 @@ class Installer
             && (new TraceabilitySchemaInstaller())->install()
             && (new CarrierSchemaInstaller())->install()
             && (new ConfigurationInstaller())->install()
+            && (new OrderStateInstaller())->install()
             && $this->installTabs()
             && (new CarrierProvisionInstaller())->install();
     }
 
     public function uninstall(): bool
     {
-        return (new ConfigurationInstaller())->uninstall()
+        return (new OrderStateInstaller())->uninstall()
+            && (new ConfigurationInstaller())->uninstall()
             && (new CarrierSchemaInstaller())->uninstall()
             && (new TraceabilitySchemaInstaller())->uninstall()
             && (new CacheSchemaInstaller())->uninstall()

@@ -1,0 +1,118 @@
+<div class="card mt-3">
+  <div class="card-header">
+    <h3 class="card-header-title mb-0">{{ 'Sendifico shipment'|trans({}, 'Modules.Vxsendifico.Admin') }}</h3>
+  </div>
+  <div class="card-body">
+    {% set trace = shipmentOverview.trace %}
+
+    <div class="row">
+      <div class="col-md-6">
+        <p class="mb-1"><strong>{{ 'Local state'|trans({}, 'Modules.Vxsendifico.Admin') }}:</strong> <code>{{ trace.local_state }}</code></p>
+        <p class="mb-1"><strong>{{ 'Remote status'|trans({}, 'Modules.Vxsendifico.Admin') }}:</strong> {{ trace.remote_status ?: 'n/a' }}</p>
+        <p class="mb-1"><strong>{{ 'Paid'|trans({}, 'Modules.Vxsendifico.Admin') }}:</strong> {{ trace.is_paid ? 'Yes'|trans({}, 'Admin.Global') : 'No'|trans({}, 'Admin.Global') }}</p>
+        <p class="mb-1"><strong>{{ 'Order'|trans({}, 'Modules.Vxsendifico.Admin') }}:</strong> {{ trace.id_order ?: 'n/a' }}</p>
+        <p class="mb-0"><strong>{{ 'Cart'|trans({}, 'Modules.Vxsendifico.Admin') }}:</strong> {{ trace.id_cart ?: 'n/a' }}</p>
+      </div>
+      <div class="col-md-6">
+        <p class="mb-1"><strong>{{ 'Remote shipment ID'|trans({}, 'Modules.Vxsendifico.Admin') }}:</strong> {{ trace.remote_shipment_id ?: 'n/a' }}</p>
+        <p class="mb-1"><strong>{{ 'Carrier token'|trans({}, 'Modules.Vxsendifico.Admin') }}:</strong> {{ trace.carrier_token ?: 'n/a' }}</p>
+        <p class="mb-1"><strong>{{ 'Tracking number'|trans({}, 'Modules.Vxsendifico.Admin') }}:</strong> {{ trace.latest_tracking_number ?: 'n/a' }}</p>
+        <p class="mb-1"><strong>{{ 'Last update'|trans({}, 'Modules.Vxsendifico.Admin') }}:</strong> {{ trace.updated_at }}</p>
+        {% if trace.latest_label_url %}
+          <p class="mb-0">
+            <strong>{{ 'Label URL expires at'|trans({}, 'Modules.Vxsendifico.Admin') }}:</strong>
+            {{ trace.label_url_expires_at ?: 'n/a' }}
+          </p>
+        {% endif %}
+      </div>
+    </div>
+
+    {% if trace.last_error_code or trace.last_error_message %}
+      <div class="alert alert-warning mt-3 mb-3">
+        <strong>{{ 'Last error'|trans({}, 'Modules.Vxsendifico.Admin') }}:</strong>
+        <code>{{ trace.last_error_code ?: 'n/a' }}</code>
+        {% if trace.last_error_message %}
+          <div class="mt-1">{{ trace.last_error_message }}</div>
+        {% endif %}
+      </div>
+    {% endif %}
+
+    <div class="d-flex flex-wrap gap-2 mb-3">
+      {% if trace.actions.can_retry_purchase %}
+        <form method="post" action="{{ actionUrls.retry_purchase }}" class="mr-2 mb-2">
+          <input type="hidden" name="_token" value="{{ actionTokens.retry_purchase }}">
+          <button type="submit" class="btn btn-outline-primary">
+            {{ 'Retry purchase'|trans({}, 'Modules.Vxsendifico.Admin') }}
+          </button>
+        </form>
+      {% endif %}
+
+      {% if trace.actions.can_generate_tracking %}
+        <form method="post" action="{{ actionUrls.generate_tracking }}" class="mr-2 mb-2">
+          <input type="hidden" name="_token" value="{{ actionTokens.generate_tracking }}">
+          <button type="submit" class="btn btn-outline-primary">
+            {{ 'Generate tracking'|trans({}, 'Modules.Vxsendifico.Admin') }}
+          </button>
+        </form>
+      {% endif %}
+
+      {% if trace.actions.can_generate_label %}
+        <form method="post" action="{{ actionUrls.generate_label }}" class="mr-2 mb-2">
+          <input type="hidden" name="_token" value="{{ actionTokens.generate_label }}">
+          <button type="submit" class="btn btn-outline-primary">
+            {{ 'Generate label URL'|trans({}, 'Modules.Vxsendifico.Admin') }}
+          </button>
+        </form>
+      {% endif %}
+
+      {% if trace.latest_tracking_url %}
+        <a href="{{ trace.latest_tracking_url }}" class="btn btn-outline-secondary mb-2" target="_blank" rel="noopener">
+          {{ 'Open tracking'|trans({}, 'Modules.Vxsendifico.Admin') }}
+        </a>
+      {% endif %}
+
+      {% if trace.latest_label_url %}
+        <a href="{{ trace.latest_label_url }}" class="btn btn-outline-secondary mb-2" target="_blank" rel="noopener">
+          {{ 'Open label URL'|trans({}, 'Modules.Vxsendifico.Admin') }}
+        </a>
+      {% endif %}
+
+      <a href="{{ shipmentsListUrl }}" class="btn btn-link mb-2">
+        {{ 'Open shipment listing'|trans({}, 'Modules.Vxsendifico.Admin') }}
+      </a>
+    </div>
+
+    {% if shipmentOverview.events is not empty %}
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>{{ 'Date'|trans({}, 'Admin.Global') }}</th>
+              <th>{{ 'Event'|trans({}, 'Modules.Vxsendifico.Admin') }}</th>
+              <th>{{ 'HTTP'|trans({}, 'Modules.Vxsendifico.Admin') }}</th>
+              <th>{{ 'State after'|trans({}, 'Modules.Vxsendifico.Admin') }}</th>
+              <th>{{ 'Remote code'|trans({}, 'Modules.Vxsendifico.Admin') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for event in shipmentOverview.events %}
+              <tr>
+                <td>{{ event.created_at }}</td>
+                <td><code>{{ event.event_type }}</code></td>
+                <td>
+                  {% if event.http_method or event.http_status %}
+                    {{ event.http_method ?: '' }} {{ event.http_status ?: '' }}
+                  {% else %}
+                    n/a
+                  {% endif %}
+                </td>
+                <td>{{ event.local_state_after ?: 'n/a' }}</td>
+                <td>{{ event.remote_message_code ?: 'n/a' }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+  </div>
+</div>

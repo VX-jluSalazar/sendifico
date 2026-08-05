@@ -73,6 +73,27 @@ final class ShipmentRepository
     /**
      * @return array<string, mixed>|null
      */
+    public function findById(int $shipmentTraceId): ?array
+    {
+        if (!$this->tableExists()) {
+            return null;
+        }
+
+        $queryBuilder = $this->baseSelectQueryBuilder();
+        $statement = $queryBuilder
+            ->where('id_vx_sendifico_shipment = :shipmentTraceId')
+            ->setParameter('shipmentTraceId', $shipmentTraceId)
+            ->setMaxResults(1)
+            ->execute();
+
+        $row = $statement->fetch(PDO::FETCH_ASSOC);
+
+        return is_array($row) ? $row : null;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
     public function findByRemoteShipmentId(int $remoteShipmentId): ?array
     {
         if (!$this->tableExists()) {
@@ -163,11 +184,97 @@ final class ShipmentRepository
         return is_array($rows) ? $rows : [];
     }
 
+    /**
+     * @param array<string, mixed> $filters
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function searchForAdmin(array $filters, int $page = 1, int $limit = 20): array
+    {
+        if (!$this->tableExists()) {
+            return [];
+        }
+
+        $page = max(1, $page);
+        $limit = max(1, $limit);
+        $offset = ($page - 1) * $limit;
+
+        $queryBuilder = $this->baseSelectQueryBuilder();
+        $this->applyAdminFilters($queryBuilder, $filters);
+
+        $statement = $queryBuilder
+            ->orderBy('updated_at', 'DESC')
+            ->addOrderBy('id_vx_sendifico_shipment', 'DESC')
+            ->setFirstResult($offset)
+            ->setMaxResults($limit)
+            ->execute();
+
+        $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
+
+        return is_array($rows) ? $rows : [];
+    }
+
+    /**
+     * @param array<string, mixed> $filters
+     */
+    public function countForAdmin(array $filters): int
+    {
+        if (!$this->tableExists()) {
+            return 0;
+        }
+
+        $queryBuilder = $this->connection->createQueryBuilder()
+            ->select('COUNT(*)')
+            ->from($this->getTableName());
+        $this->applyAdminFilters($queryBuilder, $filters);
+
+        return (int) $queryBuilder->execute()->fetchColumn();
+    }
+
     private function baseSelectQueryBuilder(): QueryBuilder
     {
         return $this->connection->createQueryBuilder()
             ->select('*')
             ->from($this->getTableName());
+    }
+
+    /**
+     * @param array<string, mixed> $filters
+     */
+    private function applyAdminFilters(QueryBuilder $queryBuilder, array $filters): void
+    {
+        if (isset($filters['id_order']) && (int) $filters['id_order'] > 0) {
+            $queryBuilder
+                ->andWhere('id_order = :adminOrderId')
+                ->setParameter('adminOrderId', (int) $filters['id_order']);
+        }
+
+        if (isset($filters['id_cart']) && (int) $filters['id_cart'] > 0) {
+            $queryBuilder
+                ->andWhere('id_cart = :adminCartId')
+                ->setParameter('adminCartId', (int) $filters['id_cart']);
+        }
+
+        if (isset($filters['local_state']) && is_string($filters['local_state']) && trim($filters['local_state']) !== '') {
+            $queryBuilder
+                ->andWhere('local_state = :adminLocalState')
+                ->setParameter('adminLocalState', trim($filters['local_state']));
+        }
+
+        if (array_key_exists('is_paid', $filters) && $filters['is_paid'] !== '' && $filters['is_paid'] !== null) {
+            $queryBuilder
+                ->andWhere('is_paid = :adminIsPaid')
+                ->setParameter('adminIsPaid', (int) $filters['is_paid']);
+        }
+
+        if (!empty($filters['retryable'])) {
+            $states = array_map(
+                static fn (string $state): string => "'" . pSQL($state) . "'",
+                \Vx\Sendifico\Order\ShipmentTraceState::RETRYABLE_STATES
+            );
+
+            $queryBuilder->andWhere('local_state IN (' . implode(', ', $states) . ')');
+        }
     }
 
     /**

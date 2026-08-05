@@ -59,6 +59,69 @@ final class SendificoApiClient
 
     /**
      * @param array{api_key:string, api_version:string, country:string} $connection
+     * @param array<string, mixed> $payload
+     *
+     * @return array<string, mixed>
+     */
+    public function createShipment(array $connection, array $payload): array
+    {
+        $response = $this->request('POST', '/shipment', $connection, $payload);
+
+        return $response['payload'] ?? [];
+    }
+
+    /**
+     * @param array{api_key:string, api_version:string, country:string} $connection
+     * @param array<string, mixed> $payload
+     *
+     * @return array<string, mixed>
+     */
+    public function purchaseShipment(array $connection, int $shipmentId, array $payload): array
+    {
+        $response = $this->request('PATCH', sprintf('/shipment/purchase/%d', $shipmentId), $connection, $payload);
+
+        return $response['payload'] ?? [];
+    }
+
+    /**
+     * @param array{api_key:string, api_version:string, country:string} $connection
+     *
+     * @return array<string, mixed>
+     */
+    public function getShipment(array $connection, int $shipmentId): array
+    {
+        $response = $this->request('GET', sprintf('/shipment/%d', $shipmentId), $connection);
+
+        return $response['payload'] ?? [];
+    }
+
+    /**
+     * @param array{api_key:string, api_version:string, country:string} $connection
+     *
+     * @return array<string, mixed>
+     */
+    public function generateTrackingNumber(array $connection, int $shipmentId): array
+    {
+        $response = $this->request('PATCH', sprintf('/shipment/generateTrackingNumber/%d', $shipmentId), $connection);
+
+        return $response['payload'] ?? [];
+    }
+
+    /**
+     * @param array{api_key:string, api_version:string, country:string} $connection
+     * @param array<string, mixed> $payload
+     *
+     * @return array<string, mixed>
+     */
+    public function generateLabelUrl(array $connection, int $shipmentId, array $payload): array
+    {
+        $response = $this->request('POST', sprintf('/shipment/generateLabelUrl/%d', $shipmentId), $connection, $payload);
+
+        return $response['payload'] ?? [];
+    }
+
+    /**
+     * @param array{api_key:string, api_version:string, country:string} $connection
      * @param array<string, mixed>|null $payload
      *
      * @return array<string, mixed>
@@ -98,18 +161,24 @@ final class SendificoApiClient
         }
 
         if ($error !== '') {
-            throw new SendificoApiException('Error de red al llamar a Sendifico: ' . $error);
+            throw new SendificoApiException('Error de red al llamar a Sendifico: ' . $error, $httpCode);
         }
 
         $decoded = json_decode($body, true);
         if (!is_array($decoded)) {
-            throw new SendificoApiException('Sendifico devolvio una respuesta no JSON o invalida.');
+            throw new SendificoApiException('Sendifico devolvio una respuesta no JSON o invalida.', $httpCode);
         }
 
         if ($httpCode >= 400) {
-            $message = (string) ($decoded['message'] ?? $decoded['payload']['message'] ?? 'Error remoto desconocido.');
+            $remoteMessageCode = (string) ($decoded['message'] ?? $decoded['payload']['message'] ?? '');
+            $message = $remoteMessageCode !== '' ? $remoteMessageCode : 'Error remoto desconocido.';
 
-            throw new SendificoApiException(sprintf('Sendifico respondio HTTP %d: %s', $httpCode, $message), $httpCode);
+            throw new SendificoApiException(
+                sprintf('Sendifico respondio HTTP %d: %s', $httpCode, $message),
+                $httpCode,
+                $remoteMessageCode !== '' ? $remoteMessageCode : null,
+                $decoded
+            );
         }
 
         return $decoded;

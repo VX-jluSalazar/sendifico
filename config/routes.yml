@@ -22,3 +22,35 @@ vx_sendifico_carriers_provision:
         _controller: 'Vx\Sendifico\Controller\Admin\ConfigurationController::provisionCarriers'
         _legacy_controller: AdminVxSendificoConfiguration
         _legacy_link: AdminVxSendificoConfiguration
+
+vx_sendifico_shipments_index:
+    path: /vx-sendifico/shipments
+    methods: [GET]
+    defaults:
+        _controller: 'Vx\Sendifico\Controller\Admin\ShipmentOperationsController::index'
+        _legacy_controller: AdminVxSendificoOperations
+        _legacy_link: AdminVxSendificoOperations
+
+vx_sendifico_shipments_retry_purchase:
+    path: /vx-sendifico/shipments/{shipmentTraceId}/retry-purchase
+    methods: [POST]
+    defaults:
+        _controller: 'Vx\Sendifico\Controller\Admin\ShipmentOperationsController::retryPurchase'
+        _legacy_controller: AdminVxSendificoOperations
+        _legacy_link: AdminVxSendificoOperations
+
+vx_sendifico_shipments_generate_tracking:
+    path: /vx-sendifico/shipments/{shipmentTraceId}/generate-tracking
+    methods: [POST]
+    defaults:
+        _controller: 'Vx\Sendifico\Controller\Admin\ShipmentOperationsController::generateTracking'
+        _legacy_controller: AdminVxSendificoOperations
+        _legacy_link: AdminVxSendificoOperations
+
+vx_sendifico_shipments_generate_label:
+    path: /vx-sendifico/shipments/{shipmentTraceId}/generate-label
+    methods: [POST]
+    defaults:
+        _controller: 'Vx\Sendifico\Controller\Admin\ShipmentOperationsController::generateLabel'
+        _legacy_controller: AdminVxSendificoOperations
+        _legacy_link: AdminVxSendificoOperations
