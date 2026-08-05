@@ -1,0 +1,5 @@
+# Shared package services.
+services:
+    Vx\Sendifico\Package\PackageResolver:
+        autowire: true
+        autoconfigure: true

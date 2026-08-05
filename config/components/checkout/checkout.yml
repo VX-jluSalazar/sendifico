@@ -4,10 +4,6 @@ services:
         autowire: true
         autoconfigure: true
 
-    Vx\Sendifico\Configuration\SendificoConnectionConfigurationProvider:
-        arguments:
-            - '@prestashop.adapter.legacy.configuration'
-
     Vx\Sendifico\Checkout\CheckoutConfigurationProvider:
         arguments:
             - '@Vx\Sendifico\Configuration\SendificoConnectionConfigurationProvider'

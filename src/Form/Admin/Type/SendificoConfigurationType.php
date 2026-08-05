@@ -15,6 +15,7 @@ use Symfony\Component\Validator\Constraints\Choice;
 use Symfony\Component\Validator\Constraints\GreaterThan;
 use Symfony\Component\Validator\Constraints\Length;
 use Symfony\Component\Validator\Constraints\Regex;
+use Vx\Sendifico\Order\ContentsCatalog;
 
 class SendificoConfigurationType extends TranslatorAwareType
 {
@@ -117,11 +118,11 @@ class SendificoConfigurationType extends TranslatorAwareType
                 'help' => $this->trans('Define la politica operativa para comprar el envio cuando el pedido entra en estado pagado.', 'Modules.Vxsendifico.Admin'),
                 'choices' => [
                     $this->trans('Wallet available', 'Modules.Vxsendifico.Admin') => 'walletAvailable',
-                    $this->trans('Cash', 'Modules.Vxsendifico.Admin') => 'cash',
+                    $this->trans('Wallet tokenized', 'Modules.Vxsendifico.Admin') => 'walletTokenized',
                 ],
                 'constraints' => [
                     new Choice([
-                        'choices' => ['walletAvailable', 'cash'],
+                        'choices' => ['walletAvailable', 'walletTokenized'],
                     ]),
                 ],
             ])
@@ -155,6 +156,38 @@ class SendificoConfigurationType extends TranslatorAwareType
                 'multistore_configuration_key' => 'VX_SENDIFICO_DEFAULT_HEIGHT',
                 'label' => $this->trans('Default height (cm)', 'Modules.Vxsendifico.Admin'),
                 'constraints' => [$decimalConstraint],
+            ])
+            ->add('default_contents', ChoiceType::class, [
+                'required' => true,
+                'multistore_configuration_key' => 'VX_SENDIFICO_DEFAULT_CONTENTS',
+                'label' => $this->trans('Default shipment contents', 'Modules.Vxsendifico.Admin'),
+                'help' => $this->trans('Fallback Sendifico contents value when no explicit product or category mapping resolves the cart.', 'Modules.Vxsendifico.Admin'),
+                'choices' => ContentsCatalog::getFormChoices(),
+                'constraints' => [
+                    new Choice([
+                        'choices' => ContentsCatalog::VALUES,
+                    ]),
+                ],
+            ])
+            ->add('content_product_map', TextareaType::class, [
+                'required' => false,
+                'multistore_configuration_key' => 'VX_SENDIFICO_CONTENT_PRODUCT_MAP',
+                'label' => $this->trans('Product to contents map', 'Modules.Vxsendifico.Admin'),
+                'help' => $this->trans('One rule per line using productId=contents. Product mappings take priority over category mappings.', 'Modules.Vxsendifico.Admin'),
+                'attr' => [
+                    'rows' => 5,
+                    'placeholder' => "12=clothes\n25=documents",
+                ],
+            ])
+            ->add('content_category_map', TextareaType::class, [
+                'required' => false,
+                'multistore_configuration_key' => 'VX_SENDIFICO_CONTENT_CATEGORY_MAP',
+                'label' => $this->trans('Category to contents map', 'Modules.Vxsendifico.Admin'),
+                'help' => $this->trans('One rule per line using categoryId=contents. If multiple categories appear, the dominant contents wins by quantity and then by total weight.', 'Modules.Vxsendifico.Admin'),
+                'attr' => [
+                    'rows' => 5,
+                    'placeholder' => "4=clothes\n9=decoration",
+                ],
             ])
             ->add('enable_debug_logs', SwitchType::class, [
                 'required' => false,

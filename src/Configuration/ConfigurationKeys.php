@@ -19,6 +19,10 @@ final class ConfigurationKeys
     public const DEFAULT_LENGTH = 'VX_SENDIFICO_DEFAULT_LENGTH';
     public const DEFAULT_WIDTH = 'VX_SENDIFICO_DEFAULT_WIDTH';
     public const DEFAULT_HEIGHT = 'VX_SENDIFICO_DEFAULT_HEIGHT';
+    public const DEFAULT_CONTENTS = 'VX_SENDIFICO_DEFAULT_CONTENTS';
+    public const CONTENT_PRODUCT_MAP = 'VX_SENDIFICO_CONTENT_PRODUCT_MAP';
+    public const CONTENT_CATEGORY_MAP = 'VX_SENDIFICO_CONTENT_CATEGORY_MAP';
+    public const UNPAID_ORDER_STATE_ID = 'VX_SENDIFICO_UNPAID_ORDER_STATE_ID';
 
     public const DEFAULTS = [
         self::API_KEY => '',
@@ -36,11 +40,15 @@ final class ConfigurationKeys
         self::DEFAULT_LENGTH => '10.000',
         self::DEFAULT_WIDTH => '10.000',
         self::DEFAULT_HEIGHT => '10.000',
+        self::DEFAULT_CONTENTS => 'clothes',
+        self::CONTENT_PRODUCT_MAP => '',
+        self::CONTENT_CATEGORY_MAP => '',
+        self::UNPAID_ORDER_STATE_ID => 0,
     ];
 
     public const PURCHASE_WITH_CHOICES = [
         'walletAvailable',
-        'cash',
+        'walletTokenized',
     ];
 
     private function __construct()

@@ -3,6 +3,8 @@
 namespace Vx\Sendifico\Configuration;
 
 use PrestaShop\PrestaShop\Adapter\Shop\Context as ShopContext;
+use Vx\Sendifico\Order\ContentsCatalog;
+use Vx\Sendifico\Order\ContentsMappingParser;
 use Vx\Sendifico\Repository\SenderAddressRepository;
 use Vx\Sendifico\Repository\ShopRepository;
 
@@ -112,6 +114,28 @@ class SendificoFormDataProvider
         foreach (['default_weight', 'default_length', 'default_width', 'default_height'] as $field) {
             if ((float) ($data[$field] ?? 0) <= 0) {
                 $errors[] = sprintf('El valor de "%s" debe ser mayor que 0.', $field);
+            }
+        }
+
+        $defaultContents = trim((string) ($data['default_contents'] ?? ''));
+        if (!ContentsCatalog::isSupported($defaultContents)) {
+            $errors[] = 'El contenido por defecto configurado no existe en el catalogo soportado por Sendifico.';
+        }
+
+        foreach ([
+            'content_product_map' => 'producto',
+            'content_category_map' => 'categoria',
+        ] as $field => $label) {
+            $mapping = ContentsMappingParser::parse((string) ($data[$field] ?? ''));
+            foreach ($mapping as $id => $content) {
+                if (!ContentsCatalog::isSupported($content)) {
+                    $errors[] = sprintf(
+                        'El mapeo de %s #%d usa un contents no soportado: %s.',
+                        $label,
+                        $id,
+                        $content
+                    );
+                }
             }
         }
 

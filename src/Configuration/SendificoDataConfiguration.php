@@ -4,6 +4,8 @@ namespace Vx\Sendifico\Configuration;
 
 use PrestaShop\PrestaShop\Core\Configuration\AbstractMultistoreConfiguration;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Vx\Sendifico\Order\ContentsCatalog;
+use Vx\Sendifico\Order\ContentsMappingParser;
 
 class SendificoDataConfiguration extends AbstractMultistoreConfiguration
 {
@@ -23,6 +25,9 @@ class SendificoDataConfiguration extends AbstractMultistoreConfiguration
         'default_length',
         'default_width',
         'default_height',
+        'default_contents',
+        'content_product_map',
+        'content_category_map',
     ];
 
     public function getConfiguration(): array
@@ -45,6 +50,9 @@ class SendificoDataConfiguration extends AbstractMultistoreConfiguration
             'default_length' => (string) $this->configuration->get(ConfigurationKeys::DEFAULT_LENGTH, ConfigurationKeys::DEFAULTS[ConfigurationKeys::DEFAULT_LENGTH], $shopConstraint),
             'default_width' => (string) $this->configuration->get(ConfigurationKeys::DEFAULT_WIDTH, ConfigurationKeys::DEFAULTS[ConfigurationKeys::DEFAULT_WIDTH], $shopConstraint),
             'default_height' => (string) $this->configuration->get(ConfigurationKeys::DEFAULT_HEIGHT, ConfigurationKeys::DEFAULTS[ConfigurationKeys::DEFAULT_HEIGHT], $shopConstraint),
+            'default_contents' => (string) $this->configuration->get(ConfigurationKeys::DEFAULT_CONTENTS, ConfigurationKeys::DEFAULTS[ConfigurationKeys::DEFAULT_CONTENTS], $shopConstraint),
+            'content_product_map' => (string) $this->configuration->get(ConfigurationKeys::CONTENT_PRODUCT_MAP, ConfigurationKeys::DEFAULTS[ConfigurationKeys::CONTENT_PRODUCT_MAP], $shopConstraint),
+            'content_category_map' => (string) $this->configuration->get(ConfigurationKeys::CONTENT_CATEGORY_MAP, ConfigurationKeys::DEFAULTS[ConfigurationKeys::CONTENT_CATEGORY_MAP], $shopConstraint),
         ];
     }
 
@@ -64,6 +72,9 @@ class SendificoDataConfiguration extends AbstractMultistoreConfiguration
             $normalizedConfiguration['default_length'] = $this->normalizeDecimal((string) $normalizedConfiguration['default_length']);
             $normalizedConfiguration['default_width'] = $this->normalizeDecimal((string) $normalizedConfiguration['default_width']);
             $normalizedConfiguration['default_height'] = $this->normalizeDecimal((string) $normalizedConfiguration['default_height']);
+            $normalizedConfiguration['default_contents'] = trim((string) $normalizedConfiguration['default_contents']);
+            $normalizedConfiguration['content_product_map'] = ContentsMappingParser::normalize((string) ($normalizedConfiguration['content_product_map'] ?? ''));
+            $normalizedConfiguration['content_category_map'] = ContentsMappingParser::normalize((string) ($normalizedConfiguration['content_category_map'] ?? ''));
 
             $this->updateConfigurationValue(ConfigurationKeys::API_KEY, 'api_key', $normalizedConfiguration, $shopConstraint);
             $this->updateConfigurationValue(ConfigurationKeys::API_VERSION, 'api_version', $normalizedConfiguration, $shopConstraint);
@@ -80,6 +91,9 @@ class SendificoDataConfiguration extends AbstractMultistoreConfiguration
             $this->updateConfigurationValue(ConfigurationKeys::DEFAULT_LENGTH, 'default_length', $normalizedConfiguration, $shopConstraint);
             $this->updateConfigurationValue(ConfigurationKeys::DEFAULT_WIDTH, 'default_width', $normalizedConfiguration, $shopConstraint);
             $this->updateConfigurationValue(ConfigurationKeys::DEFAULT_HEIGHT, 'default_height', $normalizedConfiguration, $shopConstraint);
+            $this->updateConfigurationValue(ConfigurationKeys::DEFAULT_CONTENTS, 'default_contents', $normalizedConfiguration, $shopConstraint);
+            $this->updateConfigurationValue(ConfigurationKeys::CONTENT_PRODUCT_MAP, 'content_product_map', $normalizedConfiguration, $shopConstraint);
+            $this->updateConfigurationValue(ConfigurationKeys::CONTENT_CATEGORY_MAP, 'content_category_map', $normalizedConfiguration, $shopConstraint);
         }
 
         return [];
@@ -104,6 +118,10 @@ class SendificoDataConfiguration extends AbstractMultistoreConfiguration
             ->setAllowedTypes('default_length', 'string')
             ->setAllowedTypes('default_width', 'string')
             ->setAllowedTypes('default_height', 'string')
+            ->setAllowedTypes('default_contents', 'string')
+            ->setAllowedTypes('content_product_map', ['null', 'string'])
+            ->setAllowedTypes('content_category_map', ['null', 'string'])
+            ->setAllowedValues('default_contents', ContentsCatalog::VALUES)
             ->setAllowedValues('purchase_with', ConfigurationKeys::PURCHASE_WITH_CHOICES);
     }
 

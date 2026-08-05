@@ -3,3 +3,62 @@ services:
     Vx\Sendifico\Order\ShipmentTraceManager:
         autowire: true
         autoconfigure: true
+
+    Vx\Sendifico\Configuration\SendificoConnectionConfigurationProvider:
+        arguments:
+            - '@prestashop.adapter.legacy.configuration'
+
+    Vx\Sendifico\Order\ShipmentPreparationConfigurationProvider:
+        arguments:
+            - '@Vx\Sendifico\Configuration\SendificoConnectionConfigurationProvider'
+            - '@prestashop.adapter.legacy.configuration'
+
+    Vx\Sendifico\Order\ContentsResolver:
+        autowire: true
+        autoconfigure: true
+
+    Vx\Sendifico\Order\CodResolver:
+        autowire: true
+        autoconfigure: true
+
+    Vx\Sendifico\Order\ShipmentPayloadValidator:
+        autowire: true
+        autoconfigure: true
+
+    Vx\Sendifico\Order\ShipmentPayloadPreparer:
+        autowire: true
+        autoconfigure: true
+
+    Vx\Sendifico\Order\ShipmentRateMatcher:
+        autowire: true
+        autoconfigure: true
+
+    Vx\Sendifico\Order\OrderStateTransitionGuard:
+        autowire: true
+        autoconfigure: true
+
+    Vx\Sendifico\Order\ShipmentOrderStateService:
+        autowire: true
+        autoconfigure: true
+        arguments:
+            - '@prestashop.adapter.legacy.configuration'
+
+    Vx\Sendifico\Order\ShipmentAutomationService:
+        autowire: true
+        autoconfigure: true
+
+    Vx\Sendifico\Order\OrderLifecycleHookHandler:
+        autowire: true
+        autoconfigure: true
+        public: true
+        arguments:
+            $configuration: '@prestashop.adapter.legacy.configuration'
+
+    Vx\Sendifico\Order\ShipmentBackOfficeViewProvider:
+        autowire: true
+        autoconfigure: true
+        public: true
+
+    Vx\Sendifico\Order\ShipmentBackOfficeService:
+        autowire: true
+        autoconfigure: true
