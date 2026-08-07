@@ -1,0 +1,10 @@
+{
+  "shipmentId": 90001,
+  "extId": "ps-1-order-42",
+  "status": "purchased",
+  "isPaid": true,
+  "preferredCarrierToken": "servientrega",
+  "priceTotal": 4.25,
+  "trackingNumber": "TESTTRACK42",
+  "trackingCarrierUrl": "https://tracking.example.test/TESTTRACK42"
+}

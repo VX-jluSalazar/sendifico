@@ -1,0 +1,22 @@
+{
+  "count": 1,
+  "data": [
+    {
+      "quotationId": 1001,
+      "carrierToken": "servientrega",
+      "priceTotal": 4.25,
+      "currency": "USD",
+      "available": true,
+      "rates": [
+        {
+          "rateId": 501,
+          "carrierToken": "servientrega",
+          "priceTotal": 4.25
+        }
+      ]
+    }
+  ],
+  "page": 1,
+  "pageCount": 1,
+  "total": 1
+}

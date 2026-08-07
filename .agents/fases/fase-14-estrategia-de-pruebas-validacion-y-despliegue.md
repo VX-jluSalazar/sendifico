@@ -20,6 +20,11 @@ Definir como validar la integracion antes de puesta en produccion y como reducir
 - Set inicial de fixtures y escenarios.
 - Checklist de release y validacion post-instalacion.
 
+Salida implementada:
+- `.agents/entregables/fase-14/estrategia-pruebas-validacion-despliegue.md`
+- `tests/Fixtures/sendifico/quotation_success.json`
+- `tests/Fixtures/sendifico/shipment_purchase_success.json`
+
 ## Dependencias
 - Todas las fases previas, al menos en baseline funcional.
 
