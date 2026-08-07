@@ -4,11 +4,13 @@ namespace Vx\Sendifico\Repository;
 
 use Doctrine\DBAL\Connection;
 use PDO;
+use Vx\Sendifico\Observability\TraceSanitizer;
 
 final class ShipmentEventRepository
 {
     public function __construct(
-        private readonly Connection $connection
+        private readonly Connection $connection,
+        private readonly TraceSanitizer $traceSanitizer
     ) {
     }
 
@@ -25,7 +27,7 @@ final class ShipmentEventRepository
 
         foreach (['payload_summary', 'response_summary'] as $column) {
             if (isset($payload[$column]) && is_array($payload[$column])) {
-                $payload[$column] = json_encode($payload[$column], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                $payload[$column] = json_encode($this->traceSanitizer->sanitizePayload($payload[$column]), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
             }
         }
 

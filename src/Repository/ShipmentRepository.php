@@ -5,11 +5,13 @@ namespace Vx\Sendifico\Repository;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\Query\QueryBuilder;
 use PDO;
+use Vx\Sendifico\Observability\TraceSanitizer;
 
 final class ShipmentRepository
 {
     public function __construct(
-        private readonly Connection $connection
+        private readonly Connection $connection,
+        private readonly TraceSanitizer $traceSanitizer
     ) {
     }
 
@@ -288,7 +290,13 @@ final class ShipmentRepository
 
         foreach ($data as $column => $value) {
             if (in_array($column, ['request_snapshot', 'response_snapshot'], true) && is_array($value)) {
-                $payload[$column] = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                $payload[$column] = json_encode($this->traceSanitizer->sanitizePayload($value), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+                continue;
+            }
+
+            if ($column === 'last_error_message' && (is_string($value) || $value === null)) {
+                $payload[$column] = $this->traceSanitizer->sanitizeMessage($value);
 
                 continue;
             }

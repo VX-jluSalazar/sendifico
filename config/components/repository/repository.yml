@@ -1,5 +1,7 @@
 # Shared repository services.
 services:
+    Vx\Sendifico\Observability\TraceSanitizer: ~
+
     Vx\Sendifico\Repository\TerritoryRepository:
         arguments:
             - '@doctrine.dbal.default_connection'
@@ -19,10 +21,12 @@ services:
     Vx\Sendifico\Repository\ShipmentRepository:
         arguments:
             - '@doctrine.dbal.default_connection'
+            - '@Vx\Sendifico\Observability\TraceSanitizer'
 
     Vx\Sendifico\Repository\ShipmentEventRepository:
         arguments:
             - '@doctrine.dbal.default_connection'
+            - '@Vx\Sendifico\Observability\TraceSanitizer'
 
     Vx\Sendifico\Order\ShipmentTraceManager:
         autowire: true

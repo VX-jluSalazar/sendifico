@@ -20,6 +20,10 @@ Cerrar los aspectos transversales de seguridad, observabilidad y recuperacion op
 - Esquema de logs y catalogo de errores.
 - Reglas de observabilidad y soporte.
 
+Salida implementada:
+- `.agents/entregables/fase-12/politica-seguridad-observabilidad.md`
+- `src/Observability/TraceSanitizer.php`
+
 ## Dependencias
 - Fases funcionales anteriores ya modeladas.
 
