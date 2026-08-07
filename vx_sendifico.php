@@ -8,6 +8,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 use PrestaShop\PrestaShop\Adapter\SymfonyContainer;
 use Vx\Sendifico\Checkout\CheckoutHookHandler;
 use Vx\Sendifico\Install\Installer;
+use Vx\Sendifico\Install\ShopDataDuplicator;
 use Vx\Sendifico\Order\ShipmentBackOfficeViewProvider;
 use Vx\Sendifico\Order\OrderLifecycleHookHandler;
 
@@ -25,7 +26,7 @@ class Vx_Sendifico extends Module
     {
         $this->name = 'vx_sendifico';
         $this->tab = 'shipping_logistics';
-        $this->version = '0.9.0';
+        $this->version = '1.0.1';
         $this->author = 'Velox';
         $this->need_instance = 0;
         $this->ps_versions_compliancy = ['min' => '8.2.1', 'max' => _PS_VERSION_];
@@ -181,6 +182,14 @@ class Vx_Sendifico extends Module
         }
 
         $hookHandler->deleteAddressMetadata((int) $address->id);
+    }
+
+    public function hookActionShopDataDuplication(array $params): void
+    {
+        $sourceShopId = (int) ($params['old_id_shop'] ?? $params['id_shop_old'] ?? 0);
+        $targetShopId = (int) ($params['new_id_shop'] ?? $params['id_shop_new'] ?? 0);
+
+        (new ShopDataDuplicator())->duplicate($sourceShopId, $targetShopId);
     }
 
     public function hookActionValidateOrder(array $params): void

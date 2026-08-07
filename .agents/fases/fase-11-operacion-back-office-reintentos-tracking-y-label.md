@@ -20,6 +20,10 @@ Habilitar la operacion manual desde Back Office para reintentar purchase, genera
 - Vista operativa del shipment por pedido.
 - Listado propio del modulo con trazabilidad y filtros base.
 
+Salida implementada:
+- Menu BO unificado `Sendifico` con hijos `Configuración` y `Envios`.
+- Detalle documentado en `.agents/entregables/fase-11/resumen-implementacion.md`.
+
 ## Dependencias
 - Fase 06 y 10.
 - Modelo de permisos administrativos definido.

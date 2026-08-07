@@ -48,6 +48,9 @@
   - `/vx-sendifico/shipments`
 - Nueva tarjeta en pedido:
   - muestra estado local/remoto, tracking, label temporal, ultimo error e historial resumido.
+- Navegacion BO unificada bajo el menu `Sendifico`:
+  - `Configuración` apunta a `AdminVxSendificoConfiguration`.
+  - `Envios` apunta a `AdminVxSendificoOperations`.
 
 ## Validacion ejecutada
 - `php -l` sobre archivos tocados

@@ -20,6 +20,12 @@ Preparar el ciclo de vida del modulo para instalacion inicial, upgrades futuros 
 - Base de scripts de upgrade.
 - Politica documentada de desinstalacion destructiva y multitienda.
 
+Salida implementada:
+- `.agents/entregables/fase-13/politica-ciclo-vida-multitienda.md`
+- `src/Install/ShopDataDuplicator.php`
+- `upgrade/upgrade-1.0.0.php`
+- `upgrade/upgrade-1.0.1.php`
+
 ## Dependencias
 - Fase 03, 04, 05, 06 y 07.
 

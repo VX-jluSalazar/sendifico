@@ -20,22 +20,30 @@ class Installer
         'actionObjectAddressAddAfter',
         'actionObjectAddressUpdateAfter',
         'actionObjectAddressDeleteAfter',
+        'actionShopDataDuplication',
         'displayAdminOrderSideBottom',
     ];
 
     private array $tabs = [
         [
             'name' => 'vx_sendifico',
-            'class_name' => 'AdminVxSendificoConfiguration',
-            'label' => 'Velox Sendifico',
+            'class_name' => 'AdminVxSendifico',
+            'label' => 'Sendifico',
             'parent_class_name' => 'CONFIGURE',
-            'visible' => false,
+            'visible' => true,
+        ],
+        [
+            'name' => 'vx_sendifico',
+            'class_name' => 'AdminVxSendificoConfiguration',
+            'label' => 'Configuración',
+            'parent_class_name' => 'AdminVxSendifico',
+            'visible' => true,
         ],
         [
             'name' => 'vx_sendifico',
             'class_name' => 'AdminVxSendificoOperations',
-            'label' => 'Sendifico Shipments',
-            'parent_class_name' => 'CONFIGURE',
+            'label' => 'Envios',
+            'parent_class_name' => 'AdminVxSendifico',
             'visible' => true,
         ],
     ];
@@ -74,24 +82,23 @@ class Installer
     private function installTabs(): bool
     {
         foreach ($this->tabs as $data) {
-            if ((int) Tab::getIdFromClassName($data['class_name']) > 0) {
-                continue;
-            }
-
+            $tabId = (int) Tab::getIdFromClassName($data['class_name']);
             $parentId = (int) Tab::getIdFromClassName($data['parent_class_name']);
-            $tab = new Tab();
+            $tab = $tabId > 0 ? new Tab($tabId) : new Tab();
             $tab->active = true;
             $tab->module = $data['name'];
             $tab->class_name = $data['class_name'];
             $tab->enabled = (bool) $data['visible'];
             $tab->id_parent = $parentId;
-            $tab->position = Tab::getNewLastPosition($parentId);
+            if ($tabId <= 0 || (int) $tab->position <= 0) {
+                $tab->position = Tab::getNewLastPosition($parentId);
+            }
 
             foreach (Language::getLanguages(false) as $lang) {
                 $tab->name[(int) $lang['id_lang']] = $data['label'];
             }
 
-            if (!$tab->save()) {
+            if ($tabId > 0 ? !$tab->update() : !$tab->save()) {
                 return false;
             }
         }
@@ -101,7 +108,7 @@ class Installer
 
     private function uninstallTabs(): bool
     {
-        foreach ($this->tabs as $data) {
+        foreach (array_reverse($this->tabs) as $data) {
             $tabId = (int) Tab::getIdFromClassName($data['class_name']);
             if ($tabId <= 0) {
                 continue;
